@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "echo \"No tests specified\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
