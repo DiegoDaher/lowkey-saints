@@ -70,7 +70,8 @@ src/modules/catalog/
         └── useCatalogFilters.ts
 ```
 
-Checklist de Verificación
+## Checklist de Verificación
+
 [ ] El Hero carga recursos multimedia de forma diferida (next/image con priority moderado o next-video).
 
 [ ] Las tarjetas alternan imagen al hacer hover sin salto de layout (CLS = 0).
