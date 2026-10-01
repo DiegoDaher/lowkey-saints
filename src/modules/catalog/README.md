@@ -69,3 +69,13 @@ src/modules/catalog/
     └── hooks/
         └── useCatalogFilters.ts
 ```
+
+## Checklist de Verificación
+
+[ ] El Hero carga recursos multimedia de forma diferida (next/image con priority moderado o next-video).
+
+[ ] Las tarjetas alternan imagen al hacer hover sin salto de layout (CLS = 0).
+
+[ ] Los filtros actualizan la URL sin causar un refresh completo de la página.
+
+[ ] La consulta Prisma utiliza select proyectado y soporta paginación eficiente.
