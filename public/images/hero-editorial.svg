@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1200" fill="none">
+  <defs>
+    <linearGradient
+      id="backdrop"
+      x1="960"
+      x2="960"
+      y1="0"
+      y2="1200"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#85827B" />
+      <stop offset="1" stop-color="#252522" />
+    </linearGradient>
+    <linearGradient
+      id="coat"
+      x1="950"
+      x2="1100"
+      y1="300"
+      y2="1100"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#E6E2D8" />
+      <stop offset="1" stop-color="#AAA69B" />
+    </linearGradient>
+    <radialGradient
+      id="light"
+      cx="0"
+      cy="0"
+      r="1"
+      gradientTransform="matrix(540 0 0 740 1050 400)"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#D5C9B3" stop-opacity=".55" />
+      <stop offset="1" stop-color="#D5C9B3" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <path fill="url(#backdrop)" d="M0 0h1920v1200H0z" />
+  <path fill="url(#light)" d="M0 0h1920v1200H0z" />
+  <path fill="#171716" fill-opacity=".48" d="M0 0h520v1200H0z" />
+  <path fill="#161615" d="M0 1020h1920v180H0z" />
+  <ellipse
+    cx="1110"
+    cy="1135"
+    fill="#080808"
+    fill-opacity=".45"
+    rx="420"
+    ry="62"
+  />
+  <path
+    fill="#AFA99D"
+    d="m804 346 92-67 106-29 104 30 109 81 120 447-130 52-57-253 8 463H766l28-460-61 236-138-38 113-381 96-81Z"
+  />
+  <path
+    fill="url(#coat)"
+    d="m861 307 68-47 72-20 75 21 73 53-17 271-43 55 38 430H797l32-432-42-51-7-253 81-27Z"
+  />
+  <path
+    fill="#F1EEE5"
+    fill-opacity=".82"
+    d="m929 260 51-20 48 20-27 72h-44l-28-72Z"
+  />
+  <path
+    stroke="#77736A"
+    stroke-opacity=".7"
+    stroke-width="5"
+    d="m978 332 23 599m-132-227 88-33m208 31-91-31"
+  />
+  <path fill="#D2CEC3" fill-opacity=".9" d="M916 443h105v117H916z" />
+  <path fill="#D2CEC3" fill-opacity=".9" d="M940 496h58v5h-58z" />
+  <path fill="#D2CEC3" fill-opacity=".9" d="M941 513h58v5h-58z" />
+  <path
+    fill="#161615"
+    fill-opacity=".9"
+    d="m823 1085 107 1-25 114H673l34-52 116-63Zm233 0 105-5 158 68 18 52h-251l-30-115Z"
+  />
+  <path fill="#0A0A0A" fill-opacity=".55" d="M0 0h1920v1200H0z" />
+  <text
+    x="130"
+    y="200"
+    fill="#F5F4F1"
+    fill-opacity=".55"
+    font-family="Arial,sans-serif"
+    font-size="22"
+    letter-spacing="8"
+  >
+    LOWKEY SAINTS — STUDIO NOTES 01
+  </text>
+  <text
+    x="1350"
+    y="1050"
+    fill="#C9A66B"
+    fill-opacity=".8"
+    font-family="Arial,sans-serif"
+    font-size="18"
+    letter-spacing="6"
+  >
+    OWN YOUR SILENCE
+  </text>
+</svg>
