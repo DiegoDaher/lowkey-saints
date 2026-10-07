@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#EFEEE9" />
+  <path
+    fill="#D8D3C7"
+    d="m281 221 76-58h87l76 58 136 145-101 111-70-65 31 395H283l31-395-70 65-101-111 138-145Z"
+  />
+  <path fill="#BEB9AD" d="m357 163 44 34 44-34-18 73h-52l-18-73Z" />
+  <path stroke="#AAA69B" stroke-width="6" d="m400 236 2 571" />
+  <path fill="#252522" d="M365 389h70v3h-70z" />
+  <path
+    fill="#171716"
+    fill-opacity=".12"
+    d="M116 366 244 227l-22 215-106-76Zm568 0L556 227l22 215 106-76Z"
+  />
+  <ellipse
+    cx="400"
+    cy="819"
+    fill="#171716"
+    fill-opacity=".1"
+    rx="205"
+    ry="26"
+  />
+</svg>
