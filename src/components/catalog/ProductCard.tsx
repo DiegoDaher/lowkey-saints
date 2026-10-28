@@ -25,6 +25,7 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
           href={`/productos/${product.slug}`}
         >
           <Image
+            unoptimized
             alt={product.name}
             className="object-cover"
             fill
@@ -33,6 +34,7 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
           />
           {product.images.alternate && (
             <Image
+              unoptimized
               alt={`${product.name}, vista alternativa`}
               className="product-card__alternate object-cover"
               fill

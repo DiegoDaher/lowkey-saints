@@ -5,6 +5,7 @@ import { CatalogFilterProvider } from "@/components/catalog/CatalogFilterProvide
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import "./globals.css";
+import { CartProvider } from "@/components/shop/CartProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,12 +41,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${barlowCondensed.variable} ${kaushanScript.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <CatalogFilterProvider>
-          <AnnouncementBar />
-          <Header />
-          {children}
-          <Footer />
-        </CatalogFilterProvider>
+        <CartProvider>
+          <CatalogFilterProvider>
+            <AnnouncementBar />
+            <Header />
+            {children}
+            <Footer />
+          </CatalogFilterProvider>
+        </CartProvider>
       </body>
     </html>
   );

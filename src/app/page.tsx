@@ -1,6 +1,5 @@
 import Hero from "@/components/sections/Hero";
 import CatalogSection from "@/components/catalog/CatalogSection";
-import { mockProducts } from "@/data/mock-products";
 
 export default function Home() {
   return (
@@ -23,7 +22,7 @@ export default function Home() {
           </>
         }
       />
-      <CatalogSection products={mockProducts} />
+      <CatalogSection />
     </main>
   );
 }

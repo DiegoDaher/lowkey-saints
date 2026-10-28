@@ -1,16 +1,13 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider            = "prisma-client"
+  output              = "../supabase/functions/_shared/generated/prisma"
+  runtime             = "deno"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
 }
 
 enum Role {
@@ -25,62 +22,203 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  NOTIFIED
+  UNSUBSCRIBED
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
 model Product {
-  id           String             @id @default(uuid())
-  name         String
-  slug         String             @unique
-  description  String?
-  costPrice    Decimal            @db.Decimal(10, 2)
-  salePrice    Decimal            @db.Decimal(10, 2)
-  images       String[]
-  variants     ProductVariant[]
-  restockSubs  RestockAlert[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id             String              @id @default(uuid())
+  name           String
+  slug           String              @unique
+  description    String              @default("")
+  materials      String              @default("")
+  specifications String              @default("")
+  salePrice      Decimal             @db.Decimal(10, 2)
+  isArchived     Boolean             @default(false)
+  version        Int                 @default(0)
+  modelHeightCm  Decimal?            @db.Decimal(5, 2)
+  modelSize      String?
+  images         ProductImage[]
+  categories     ProductCategory[]
+  measurements   SizeMeasurement[]
+  complements    ProductComplement[] @relation("lookSource")
+  complementedBy ProductComplement[] @relation("lookTarget")
+  variants       ProductVariant[]
+  financial      ProductCost?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([isArchived, createdAt, id])
+}
+
+model ProductCost {
+  productId String   @id
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  costPrice Decimal  @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id       String            @id @default(uuid())
+  name     String            @unique
+  slug     String            @unique
+  products ProductCategory[]
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([productId, categoryId])
+  @@index([categoryId, productId])
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  path      String
+  alt       String
+  position  Int
+
+  @@unique([productId, position])
+}
+
+model SizeMeasurement {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String
+  chestCm   Decimal? @db.Decimal(5, 2)
+  waistCm   Decimal? @db.Decimal(5, 2)
+  hipCm     Decimal? @db.Decimal(5, 2)
+
+  @@unique([productId, size])
+}
+
+model ProductComplement {
+  productId       String
+  complementaryId String
+  position        Int
+  product         Product @relation("lookSource", fields: [productId], references: [id], onDelete: Cascade)
+  complementary   Product @relation("lookTarget", fields: [complementaryId], references: [id], onDelete: Restrict)
+
+  @@id([productId, complementaryId])
+  @@unique([productId, position])
+  @@index([complementaryId])
 }
 
 model ProductVariant {
-  id           String             @id @default(uuid())
-  productId    String
-  product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
-  size         String             // XS, S, M, L, XL
-  color        String
-  sku          String             @unique
-  stock        Int                @default(0)
-  orderItems   OrderItem[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id            String                @id @default(uuid())
+  productId     String
+  product       Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  size          String
+  color         String
+  colorHex      String                @default("#222222")
+  sku           String                @unique
+  stock         Int                   @default(0)
+  version       Int                   @default(0)
+  isArchived    Boolean               @default(false)
+  orderItems    OrderItem[]
+  subscriptions RestockSubscription[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([productId, size, color])
 }
 
 model Order {
-  id          String         @id @default(uuid())
-  orderNumber Int            @default(autoincrement())
-  status      OrderStatus    @default(PENDING_PAYMENT)
-  totalAmount Decimal        @db.Decimal(10, 2)
-  clientName  String
-  clientPhone String
-  expiresAt   DateTime?      // Para retención temporal de stock
-  items       OrderItem[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id             String      @id @default(uuid())
+  orderNumber    Int         @unique @default(autoincrement())
+  idempotencyKey String      @unique
+  requestHash    String
+  status         OrderStatus @default(PENDING_PAYMENT)
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  currency       String      @default("MXN")
+  clientName     String
+  clientPhone    String
+  expiresAt      DateTime
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([status, expiresAt])
 }
 
 model OrderItem {
   id          String         @id @default(uuid())
   orderId     String
-  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
   variantId   String
-  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
   quantity    Int
   price       Decimal        @db.Decimal(10, 2)
+  productName String
+  sku         String
+  size        String
+  color       String
+
+  @@unique([orderId, variantId])
+  @@index([variantId])
 }
 
-model RestockAlert {
-  id          String         @id @default(uuid())
-  email       String
-  productId   String
-  product     Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  size        String
-  isNotified  Boolean        @default(false)
-  createdAt   DateTime       @default(now())
+model RestockSubscription {
+  id               String             @id @default(uuid())
+  email            String
+  variantId        String
+  variant          ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  status           SubscriptionStatus @default(ACTIVE)
+  unsubscribeToken String             @unique @default(uuid())
+  generation       Int                @default(0)
+  notifications    Notification[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([email, variantId])
+  @@index([variantId, status])
+}
+
+model Notification {
+  id             String              @id @default(uuid())
+  subscriptionId String
+  subscription   RestockSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  generation     Int
+  status         NotificationStatus  @default(PENDING)
+  attempts       Int                 @default(0)
+  availableAt    DateTime            @default(now())
+  lockedAt       DateTime?
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@unique([subscriptionId, generation])
+  @@index([status, availableAt])
+}
+
+model AdminProfile {
+  id        String   @id @db.Uuid
+  role      Role
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

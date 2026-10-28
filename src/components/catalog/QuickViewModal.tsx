@@ -75,6 +75,7 @@ export default function QuickViewModal({
         <div className="bg-bone p-4 pt-14 sm:p-6 sm:pt-14 md:p-8">
           <div className="bg-paper relative aspect-[4/5] overflow-hidden">
             <Image
+              unoptimized
               alt={product.name}
               className="object-cover"
               fill
@@ -101,6 +102,7 @@ export default function QuickViewModal({
                   type="button"
                 >
                   <Image
+                    unoptimized
                     alt=""
                     className="object-cover"
                     fill
@@ -198,13 +200,6 @@ export default function QuickViewModal({
             </fieldset>
           )}
 
-          <button
-            className="bg-ink text-paper disabled:bg-muted mt-8 min-h-12 px-6 text-xs font-bold tracking-[0.13em] disabled:cursor-not-allowed"
-            disabled
-            type="button"
-          >
-            AGREGAR A LA BOLSA
-          </button>
           <Link
             className="mt-5 text-center text-xs font-semibold tracking-[0.1em] underline underline-offset-4"
             href={`/productos/${product.slug}`}
