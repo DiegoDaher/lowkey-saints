@@ -92,7 +92,7 @@ export default function Header() {
                     filters.category === category.value ? "true" : undefined
                   }
                   className="font-display hover:text-muted text-sm font-semibold tracking-[0.12em] transition-colors"
-                  href="#catalogo"
+                  href="/#catalogo"
                   onClick={() => selectCategory(category.value)}
                 >
                   {category.label}
@@ -110,13 +110,14 @@ export default function Header() {
           >
             <Search aria-hidden="true" size={20} strokeWidth={1.6} />
           </button>
-          <button
-            aria-label="Bolsa (próximamente)"
+          <Link
+            href="/bolsa"
+            aria-label="Bolsa"
             className="flex size-11 items-center justify-center"
             type="button"
           >
             <ShoppingBag aria-hidden="true" size={20} strokeWidth={1.6} />
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -138,7 +139,7 @@ export default function Header() {
                       filters.category === category.value ? "true" : undefined
                     }
                     className="font-display block py-4 text-xl font-semibold tracking-[0.1em]"
-                    href="#catalogo"
+                    href="/#catalogo"
                     onClick={() => selectCategory(category.value)}
                   >
                     {category.label}

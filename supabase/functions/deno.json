@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "@prisma/adapter-pg": "npm:@prisma/adapter-pg@7.10.0",
+    "zod": "npm:zod@4.6.5",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.2",
+    "@prisma/client/runtime/client": "npm:@prisma/client@7.10.0/runtime/wasm-compiler-edge",
+    "@prisma/client/runtime/index-browser": "npm:@prisma/client@7.10.0/runtime/index-browser",
+    "@prisma/client/runtime/query_compiler_fast_bg.postgresql.mjs": "npm:@prisma/client@7.10.0/runtime/query_compiler_fast_bg.postgresql.mjs",
+    "@prisma/client/runtime/query_compiler_fast_bg.postgresql.wasm-base64.mjs": "npm:@prisma/client@7.10.0/runtime/query_compiler_fast_bg.postgresql.wasm-base64.mjs"
+  },
+  "compilerOptions": {
+    "strict": true
+  },
+  "nodeModulesDir": "auto"
+}

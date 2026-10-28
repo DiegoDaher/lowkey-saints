@@ -2,7 +2,8 @@ export interface Product {
   id: string;
   slug: string;
   name: string;
-  category: "Tops" | "Pantalones" | "Accesorios" | "Drops" | "Calzado";
+  category: string;
+  categories?: string[];
   price: number;
   compareAtPrice?: number;
   currency: "MXN";

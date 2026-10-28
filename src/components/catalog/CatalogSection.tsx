@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { catalogProduct } from "@/lib/catalog-product";
+import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import type { Product } from "@/types/product";
 import CatalogFilterDialog from "@/components/catalog/CatalogFilterDialog";
 import {
@@ -10,52 +13,60 @@ import {
 import CatalogToolbar from "@/components/catalog/CatalogToolbar";
 import ProductGrid from "@/components/catalog/ProductGrid";
 
-interface CatalogSectionProps {
-  products: Product[];
-}
-
-export default function CatalogSection({ products }: CatalogSectionProps) {
+export default function CatalogSection() {
   const { filters, setFilters } = useCatalogFilters();
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState("relevancia");
-  const categories: ProductCategory[] = [
-    "Todas",
-    ...Array.from(new Set(products.map((product) => product.category))),
-  ];
-
-  const filteredProducts = useMemo(() => {
-    const filtered = products.filter((product) => {
-      const matchesCategory =
-        filters.category === "Todas" || product.category === filters.category;
-      const minimum =
-        filters.minPrice === "" ? undefined : Number(filters.minPrice);
-      const maximum =
-        filters.maxPrice === "" ? undefined : Number(filters.maxPrice);
-      const matchesPrice =
-        (minimum === undefined || product.price >= minimum) &&
-        (maximum === undefined || product.price <= maximum);
-      const matchesSize =
-        filters.sizes.length === 0 ||
-        filters.sizes.some((size) => product.sizes?.includes(size));
-      const matchesColor =
-        filters.colors.length === 0 ||
-        filters.colors.some((color) =>
-          product.colors?.some((productColor) => productColor.name === color)
-        );
-
-      return matchesCategory && matchesPrice && matchesSize && matchesColor;
-    });
-
-    if (sortOrder === "precio-asc") {
-      filtered.sort((first, second) => first.price - second.price);
-    } else if (sortOrder === "precio-desc") {
-      filtered.sort((first, second) => second.price - first.price);
-    } else if (sortOrder === "novedades") {
-      filtered.reverse();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>(["Todas"]);
+  const [page, setPage] = useState(1);
+  const [lastFilters, setLastFilters] = useState(filters);
+  if (lastFilters !== filters) {
+    setLastFilters(filters);
+    setPage(1);
+  }
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      setLoading(true);
+      try {
+        const query = new URLSearchParams({
+          page: String(page),
+          sort: sortOrder,
+        });
+        if (filters.category !== "Todas")
+          query.set("category", filters.category);
+        if (filters.minPrice) query.set("min", filters.minPrice);
+        if (filters.maxPrice) query.set("max", filters.maxPrice);
+        filters.sizes.forEach((v) => query.append("size", v));
+        filters.colors.forEach((v) => query.append("color", v));
+        const result = await api<{
+          items: CatalogProduct[];
+          total: number;
+          pages: number;
+        }>("/products?" + query, { signal: controller.signal });
+        setProducts(result.items.map(catalogProduct));
+        setTotal(result.total);
+        setPages(result.pages);
+        setError("");
+      } catch (e) {
+        if (!controller.signal.aborted) setError((e as Error).message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     }
-
-    return filtered;
-  }, [filters, products, sortOrder]);
+    void load();
+    return () => controller.abort();
+  }, [filters, page, sortOrder]);
+  useEffect(() => {
+    api<{ name: string }[]>("/categories")
+      .then((rows) => setCategories(["Todas", ...rows.map((r) => r.name)]))
+      .catch(() => {});
+  }, []);
 
   const activeFilterCount =
     Number(filters.category !== "Todas") +
@@ -97,17 +108,48 @@ export default function CatalogSection({ products }: CatalogSectionProps) {
       <CatalogToolbar
         activeFilterCount={activeFilterCount}
         onFilter={() => setFilterDialogOpen(true)}
-        onSortChange={setSortOrder}
-        productCount={filteredProducts.length}
+        onSortChange={(value) => {
+          setSortOrder(value);
+          setPage(1);
+        }}
+        productCount={total}
         sortOrder={sortOrder}
       />
-      <ProductGrid products={filteredProducts} />
+      {loading ? (
+        <p className="py-10" role="status">
+          Cargando productos…
+        </p>
+      ) : error ? (
+        <p role="alert" className="py-10">
+          {error}
+        </p>
+      ) : (
+        <ProductGrid products={products} />
+      )}
+      <div className="mt-8 flex items-center justify-center gap-5">
+        <button
+          disabled={page <= 1 || loading}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          Anterior
+        </button>
+        <span>
+          {page} / {Math.max(1, pages)}
+        </span>
+        <button
+          disabled={page >= pages || loading}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Siguiente
+        </button>
+      </div>
       {filterDialogOpen && (
         <CatalogFilterDialog
           categories={categories}
           filters={filters}
           onApply={(nextFilters) => {
             setFilters(nextFilters);
+            setPage(1);
             closeFilterDialog();
           }}
           onClose={closeFilterDialog}
