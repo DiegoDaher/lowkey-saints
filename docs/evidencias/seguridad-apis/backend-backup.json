@@ -1,0 +1,5 @@
+{
+  "timestamp": "2026-11-11T18:51:33.145Z",
+  "exitCode": 0,
+  "output": "{\"function_slugs\":[\"api\"],\"project_ref\":\"yjsmvhtyiqfgqwggtqcj\",\"message\":\"Downloaded Edge Function source.\"}\nA new version of Supabase CLI is available: v3.1.0 (currently installed v2.121.0)\nWe recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli\n"
+}

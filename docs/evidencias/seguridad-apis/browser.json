@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-11-11T18:40:13.829Z",
+  "environment": "local",
+  "commitBase": "6185d144f5fbf29d0bafd867047a61b6cceb5197",
+  "command": "node node_modules/@playwright/test/cli.js test --config tests/playwright.config.ts",
+  "exitCode": 0,
+  "output": "\nRunning 3 tests using 1 worker\n\n  ok 1 tests\\shop.browser.spec.ts:3:7 › catalog, cart persistence and order receipt (retry: false) (5.8s)\n  ok 2 tests\\shop.browser.spec.ts:3:7 › catalog, cart persistence and order receipt (retry: true) (2.8s)\n  ok 3 tests\\shop.browser.spec.ts:153:5 › admin routes redirect anonymous visitors (1.5s)\n\n  3 passed (14.5s)\n"
+}

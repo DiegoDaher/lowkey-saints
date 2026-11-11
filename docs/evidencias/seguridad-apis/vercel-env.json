@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-11-11T18:56:34.130Z",
+  "checks": [
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_URL",
+      "environment": "production",
+      "exitCode": 0
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "environment": "production",
+      "exitCode": 0
+    }
+  ]
+}

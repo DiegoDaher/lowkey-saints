@@ -1,0 +1,6 @@
+{
+  "timestamp": "2026-11-11T18:38:00.475Z",
+  "mode": "verify-full",
+  "blocked": true,
+  "error": "SELF_SIGNED_CERT_IN_CHAIN"
+}

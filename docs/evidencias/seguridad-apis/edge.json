@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-11-11T18:38:03.879Z",
+  "environment": "local",
+  "commitBase": "6185d144f5fbf29d0bafd867047a61b6cceb5197",
+  "command": "node node_modules/deno/bin.cjs check --config supabase/functions/deno.json supabase/functions/api/index.ts supabase/functions/jobs/index.ts",
+  "exitCode": 0,
+  "output": "\u001b[0m\u001b[32mCheck\u001b[0m supabase/functions/api/index.ts\n\u001b[0m\u001b[32mCheck\u001b[0m supabase/functions/jobs/index.ts\n"
+}

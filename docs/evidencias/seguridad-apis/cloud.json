@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-11-11T18:55:16.089Z",
+  "environment": "Supabase existente",
+  "commitBase": "1f8d45092ecf9c501aa50a615cdece19c1d0cbec",
+  "checks": [
+    {
+      "name": "GET /functions/v1/api/v1/products",
+      "status": 200,
+      "response": {
+        "page": 1,
+        "total": 0,
+        "items": []
+      }
+    },
+    {
+      "name": "Finanzas sin sesión",
+      "status": 401,
+      "response": {
+        "error": "Inicia sesión"
+      },
+      "expected": 401
+    },
+    {
+      "name": "TLS Supabase HTTPS",
+      "authorized": true,
+      "protocol": "TLSv1.3",
+      "validFrom": "Oct 24 13:22:36 2026 GMT",
+      "validTo": "Jan 22 14:22:32 2027 GMT",
+      "issuer": "Google Trust Services"
+    },
+    {
+      "name": "Migraciones remotas",
+      "rows": [
+        {
+          "migration_name": "202610150001_initial",
+          "applied": true
+        },
+        {
+          "migration_name": "202610150002_integrity_security",
+          "applied": true
+        },
+        {
+          "migration_name": "202610150003_jobs",
+          "applied": true
+        }
+      ]
+    },
+    {
+      "name": "Conexión APP_DATABASE_URL",
+      "server": [
+        {
+          "ssl": false,
+          "version": null,
+          "cipher": null
+        }
+      ],
+      "clientEncrypted": false,
+      "clientAuthorized": false
+    },
+    {
+      "name": "POST /auth/v1/token?grant_type=password ADMIN",
+      "status": 200,
+      "request": {
+        "email": "[CUENTA TEMPORAL]",
+        "password": "[OCULTO]"
+      },
+      "response": {
+        "token_type": "bearer",
+        "access_token": "[OCULTO]",
+        "refresh_token": "[OCULTO]",
+        "user": "[OCULTO]"
+      }
+    },
+    {
+      "name": "GET finanzas ADMIN",
+      "status": 200,
+      "expected": 200,
+      "response": {
+        "records": 0,
+        "content": "[DATOS FINANCIEROS OMITIDOS]"
+      }
+    },
+    {
+      "name": "Imagen con firma inválida",
+      "status": 400,
+      "expected": 400
+    },
+    {
+      "name": "PNG de prueba válido",
+      "status": 201,
+      "expected": 201
+    },
+    {
+      "name": "Limpieza PNG de prueba",
+      "success": true
+    },
+    {
+      "name": "POST /auth/v1/token?grant_type=password STAFF",
+      "status": 200,
+      "request": {
+        "email": "[CUENTA TEMPORAL]",
+        "password": "[OCULTO]"
+      },
+      "response": {
+        "token_type": "bearer",
+        "access_token": "[OCULTO]",
+        "refresh_token": "[OCULTO]",
+        "user": "[OCULTO]"
+      }
+    },
+    {
+      "name": "GET finanzas STAFF",
+      "status": 403,
+      "expected": 403,
+      "response": {
+        "error": "No tienes permiso"
+      }
+    }
+  ]
+}

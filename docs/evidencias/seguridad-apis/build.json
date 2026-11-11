@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-11-11T18:40:11.626Z",
+  "environment": "local",
+  "commitBase": "6185d144f5fbf29d0bafd867047a61b6cceb5197",
+  "command": "node node_modules/next/dist/bin/next build",
+  "exitCode": 0,
+  "output": "▲ Next.js 16.3.6 (Turbopack)\n- Environments: .env\n✓ Running next.config.ts took 73ms\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 2.8s\n  Running TypeScript ...\n  Finished TypeScript in 9.8s ...\n  Collecting page data using 9 workers ...\n  Generating static pages using 9 workers (0/7) ...\n  Generating static pages using 9 workers (1/7) \r\n  Generating static pages using 9 workers (3/7) \r\n  Generating static pages using 9 workers (5/7) \r\n✓ Generating static pages using 9 workers (7/7) in 3.3s\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ○ /admin\n├ ○ /admin/login\n├ ○ /baja\n├ ○ /bolsa\n└ ƒ /productos/[slug]\n\n\nƒ Proxy (Middleware)\n\n○  (Static)   prerendered as static content\nƒ  (Dynamic)  server-rendered on demand\n\n"
+}
