@@ -14,6 +14,11 @@ import {
   id,
 } from "../_shared/contracts.ts";
 import { Prisma } from "../_shared/generated/prisma/client.ts";
+import {
+  readJsonBody,
+  readLimitedBody,
+  IMAGE_BODY_LIMIT,
+} from "../_shared/request-body.ts";
 const shop = new ShopService(db);
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const auth = createClient(
@@ -48,16 +53,7 @@ async function administrator(req: Request, onlyAdmin = false) {
   return profile;
 }
 async function body(req: Request) {
-  if (Number(req.headers.get("content-length") || 0) > 200000)
-    throw new AppError(413, "Solicitud demasiado grande");
-  const raw = await req.text();
-  if (raw.length > 200000)
-    throw new AppError(413, "Solicitud demasiado grande");
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw new AppError(400, "JSON inválido");
-  }
+  return readJsonBody(req);
 }
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -436,10 +432,12 @@ Deno.serve(async (req) => {
       );
     }
     if (route === "/v1/admin/images" && method === "POST") {
-      const file = await req.arrayBuffer();
-      if (file.byteLength > 5 * 1024 * 1024)
-        throw new AppError(413, "Máximo 5 MB por imagen");
-      const bytes = new Uint8Array(file);
+      const bytes = await readLimitedBody(
+        req,
+        IMAGE_BODY_LIMIT,
+        "Máximo 5 MB por imagen"
+      );
+      const file = bytes;
       const type = req.headers.get("content-type");
       const ext =
         type === "image/jpeg"
