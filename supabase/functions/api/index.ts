@@ -252,9 +252,26 @@ Deno.serve(async (req) => {
     if (route === "/v1/admin/me" && method === "GET") return json(profile);
     if (route === "/v1/admin/health" && method === "GET") {
       const result = await db.$transaction(
-        (tx) => tx.$queryRaw<{ ok: number }[]>`SELECT 1 AS ok`
+        (tx) =>
+          tx.$queryRaw<
+            {
+              ok: number;
+              ssl: boolean;
+              version: string | null;
+              cipher: string | null;
+            }[]
+          >`SELECT 1 AS ok, ssl, version, cipher FROM pg_stat_ssl WHERE pid=pg_backend_pid()`
       );
-      return json({ database: result[0]?.ok === 1 });
+      return json({
+        database: result[0]?.ok === 1,
+        postgresTls: result[0]
+          ? {
+              ssl: result[0].ssl,
+              version: result[0].version,
+              cipher: result[0].cipher,
+            }
+          : null,
+      });
     }
     if (route === "/v1/admin/products" && method === "POST")
       return json(

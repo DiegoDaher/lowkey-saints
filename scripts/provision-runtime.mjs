@@ -1,3 +1,4 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import pg from "pg";
 import { randomBytes } from "node:crypto";
@@ -8,7 +9,7 @@ if (process.env.APP_DATABASE_URL) {
   process.exit(0);
 }
 const admin = new pg.Client({
-  connectionString: process.env.DIRECT_URL,
+  ...postgresTlsConfig(process.env.DIRECT_URL),
   connectionTimeoutMillis: 10000,
 });
 try {
@@ -24,7 +25,7 @@ try {
   url.password = password;
   url.searchParams.delete("pgbouncer");
   const probe = new pg.Client({
-    connectionString: url.toString(),
+    ...postgresTlsConfig(url.toString()),
     connectionTimeoutMillis: 10000,
   });
   try {

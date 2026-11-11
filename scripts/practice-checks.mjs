@@ -9,6 +9,7 @@ const commands = {
     "--test",
     "tests/domain.test.ts",
     "tests/request-body.test.ts",
+    "tests/postgres-tls.test.ts",
   ],
   edge: [
     "node_modules/deno/bin.cjs",

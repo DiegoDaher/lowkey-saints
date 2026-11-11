@@ -1,3 +1,4 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
@@ -12,7 +13,7 @@ const auth = createClient(
     auth: { persistSession: false, autoRefreshToken: false },
   }
 );
-const sql = new pg.Client({ connectionString: process.env.DIRECT_URL });
+const sql = new pg.Client({ ...postgresTlsConfig(process.env.DIRECT_URL) });
 await sql.connect();
 let createdId;
 try {

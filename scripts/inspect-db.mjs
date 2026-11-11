@@ -1,9 +1,10 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import pg from "pg";
 const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!url) throw new Error("Missing database connection");
 const client = new pg.Client({
-  connectionString: url,
+  ...postgresTlsConfig(url),
   connectionTimeoutMillis: 10000,
 });
 try {

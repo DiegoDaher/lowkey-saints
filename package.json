@@ -14,7 +14,7 @@
     "db:studio": "prisma studio",
     "prepare": "husky",
     "test": "npm run test:unit",
-    "test:unit": "tsx --test tests/domain.test.ts tests/request-body.test.ts",
+    "test:unit": "tsx --test tests/domain.test.ts tests/request-body.test.ts tests/postgres-tls.test.ts",
     "test:integration": "node scripts/test-integration.mjs",
     "test:browser": "playwright test --config tests/playwright.config.ts",
     "check:edge": "deno check --config supabase/functions/deno.json supabase/functions/api/index.ts supabase/functions/jobs/index.ts",

@@ -1,3 +1,4 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import { mkdir, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
@@ -84,7 +85,7 @@ try {
   record("TLS Supabase HTTPS", { blocked: true, error: e.code || e.name });
 }
 const sql = new pg.Client({
-  connectionString: process.env.DIRECT_URL,
+  ...postgresTlsConfig(process.env.DIRECT_URL),
   connectionTimeoutMillis: 10000,
 });
 const auth = createClient(url, process.env.SUPABASE_SECRET_KEY, {
@@ -98,7 +99,7 @@ try {
   );
   record("Migraciones remotas", { rows: migrations.rows });
   const appDb = new pg.Client({
-    connectionString: process.env.APP_DATABASE_URL,
+    ...postgresTlsConfig(process.env.APP_DATABASE_URL),
     connectionTimeoutMillis: 10000,
   });
   try {

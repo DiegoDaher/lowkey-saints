@@ -1,9 +1,10 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import pg from "pg";
 const email = process.argv[2];
 if (!email || !email.includes("@"))
   throw new Error("Usage: node scripts/bootstrap-admin.mjs email");
-const client = new pg.Client({ connectionString: process.env.DIRECT_URL });
+const client = new pg.Client({ ...postgresTlsConfig(process.env.DIRECT_URL) });
 await client.connect();
 try {
   await client.query("BEGIN");
