@@ -1,13 +1,11 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { statusLabel } from "@/lib/status-label";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import type {
-  CatalogProduct,
-  AdminOrder,
-} from "../../../supabase/functions/_shared/contracts";
+import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import ProductEditor from "./ProductEditor";
 type Role = { id: string; role: "ADMIN" | "STAFF"; active: boolean };
 type Finance = {
@@ -44,7 +42,6 @@ export default function AdminConsole() {
   const [busy, setBusy] = useState(false);
   const [page, setPage] = useState(1);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [finances, setFinances] = useState<Finance[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -76,8 +73,6 @@ export default function AdminConsole() {
         setProducts(result.items);
         setCategories(await api("/categories"));
       }
-      if (tab === "ordenes")
-        setOrders(await call("/admin/orders?page=" + page));
       if (tab === "restock") setSubs(await call("/admin/restock?page=" + page));
       if (tab === "finanzas")
         setFinances(await call("/admin/finances?page=" + page));
@@ -125,20 +120,26 @@ export default function AdminConsole() {
           .filter(
             (s) => role?.role === "ADMIN" || !["finanzas", "roles"].includes(s)
           )
-          .map((s) => (
-            <button
-              aria-current={tab === s ? "page" : undefined}
-              className={tab === s ? "shop-button" : "border px-4 py-3"}
-              key={s}
-              onClick={() => {
-                setTab(s);
-                setPage(1);
-                setEditing(undefined);
-              }}
-            >
-              {s}
-            </button>
-          ))}
+          .map((s) =>
+            s === "ordenes" ? (
+              <Link key={s} href="/admin/ordenes" className="border px-4 py-3">
+                {s}
+              </Link>
+            ) : (
+              <button
+                aria-current={tab === s ? "page" : undefined}
+                className={tab === s ? "shop-button" : "border px-4 py-3"}
+                key={s}
+                onClick={() => {
+                  setTab(s);
+                  setPage(1);
+                  setEditing(undefined);
+                }}
+              >
+                {s}
+              </button>
+            )
+          )}
       </nav>
       <p role="alert">{error}</p>
       {busy && <p role="status">Procesando…</p>}
@@ -327,52 +328,6 @@ export default function AdminConsole() {
                 </button>
               </form>
             </details>
-          </section>
-        ))}
-      {tab === "ordenes" &&
-        orders.map((o) => (
-          <section className="space-y-3 border p-5" key={o.id}>
-            <h2 className="text-xl">
-              #{o.orderNumber} · {statusLabel(o.status)}
-            </h2>
-            <p>
-              {o.clientName} · {o.clientPhone}
-            </p>
-            <ul>
-              {o.items.map((i, n) => (
-                <li key={n}>
-                  {i.quantity} × {i.productName} / {i.size} / {i.color} · ${" "}
-                  {i.price}
-                </li>
-              ))}
-            </ul>
-            <p>
-              Total $ {o.totalAmount} MXN · Vence{" "}
-              {new Date(o.expiresAt).toLocaleString("es-MX")}
-            </p>
-            <div className="flex gap-3">
-              {(o.status === "PENDING_PAYMENT"
-                ? ["CONFIRMED", "CANCELLED"]
-                : o.status === "CONFIRMED"
-                  ? ["SHIPPED"]
-                  : []
-              ).map((status) => (
-                <button
-                  disabled={busy}
-                  key={status}
-                  className="shop-button"
-                  onClick={() =>
-                    act("/admin/orders/" + o.id, "PATCH", { status })
-                  }
-                >
-                  {status === "CONFIRMED"
-                    ? "Confirmar pago"
-                    : status === "SHIPPED"
-                      ? "Marcar enviado"
-                      : "Cancelar"}
-                </button>
-              ))}
-            </div>
           </section>
         ))}
       {tab === "restock" && (

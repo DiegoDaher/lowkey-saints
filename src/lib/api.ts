@@ -1,3 +1,11 @@
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
 export async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -23,6 +31,9 @@ export async function api<T>(
     .json()
     .catch(() => ({ error: "No se pudo conectar con la tienda" }));
   if (!response.ok)
-    throw new Error(value.error || "No se pudo completar la operación");
+    throw new ApiError(
+      response.status,
+      value.error || "No se pudo completar la operación"
+    );
   return value;
 }
