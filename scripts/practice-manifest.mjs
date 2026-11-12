@@ -7,6 +7,10 @@ const entries = (await readdir(dir))
   .filter((name) => name !== "manifest.json")
   .sort();
 const sources = [
+  "docs/prod-ca-2021.crt",
+  "supabase/functions/_shared/postgres-tls.mjs",
+  "supabase/functions/_shared/db.ts",
+  "tests/postgres-tls.test.ts",
   "supabase/functions/_shared/request-body.ts",
   "supabase/functions/api/index.ts",
   "tests/request-body.test.ts",
@@ -23,7 +27,7 @@ const secrets = Object.entries(process.env).filter(
 const files = [];
 for (const path of [...entries.map((name) => dir + "/" + name), ...sources]) {
   const content = await readFile(path);
-  if (/\.(json|md|ts)$/.test(path)) {
+  if (/\.(json|md|ts|mjs)$/.test(path)) {
     for (const [name, value] of secrets)
       if (content.toString("utf8").includes(value))
         throw new Error("Secret value found: " + name + " in " + path);
@@ -40,6 +44,7 @@ await writeFile(
     {
       timestamp: new Date().toISOString(),
       improvementCommit: "1f8d45092ecf9c501aa50a615cdece19c1d0cbec",
+      tlsCommit: "654ee23",
       commitAtCapture: execFileSync("git", ["rev-parse", "HEAD"], {
         encoding: "utf8",
       }).trim(),

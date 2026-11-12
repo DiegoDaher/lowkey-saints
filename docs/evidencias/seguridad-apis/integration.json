@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-11-11T18:38:49.089Z",
+  "timestamp": "2026-11-11T21:57:10.646Z",
   "environment": "local",
-  "commitBase": "6185d144f5fbf29d0bafd867047a61b6cceb5197",
+  "commitBase": "654ee23706a02eb16ffbef234923f85e597e1dcc",
   "command": "node scripts/test-integration.mjs",
-  "exitCode": 1,
-  "output": "node:internal/modules/run_main:122\r\n    triggerUncaughtException(\r\n    ^\r\n\r\nError: connect ECONNREFUSED 127.0.0.1:55439\r\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1634:16) {\r\n  errno: -4078,\r\n  code: 'ECONNREFUSED',\r\n  syscall: 'connect',\r\n  address: '127.0.0.1',\r\n  port: 55439\r\n}\r\n\r\nNode.js v22.13.0\r\n"
+  "exitCode": 0,
+  "output": "All migrations applied to disposable test database\n\u001b[0m\u001b[32mCheck\u001b[0m tests/integration.ts\n\u001b[0m\u001b[38;5;245mrunning 1 test from ./tests/integration.ts\u001b[0m\nPostgreSQL: atomic reservations, expiry, concurrency, outbox and RLS ...\n\u001b[0m\u001b[38;5;245m------- output -------\u001b[0m\nIntegration assertions passed\n\u001b[0m\u001b[38;5;245m----- output end -----\u001b[0m\nPostgreSQL: atomic reservations, expiry, concurrency, outbox and RLS ... \u001b[0m\u001b[32mok\u001b[0m \u001b[0m\u001b[38;5;245m(6s)\u001b[0m\n\n\u001b[0m\u001b[32mok\u001b[0m | 1 passed | 0 failed \u001b[0m\u001b[38;5;245m(6s)\u001b[0m\n\n"
 }

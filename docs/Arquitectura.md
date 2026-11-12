@@ -10,7 +10,7 @@ flowchart TD
   B -->|HTTPS y JWT para administración| E[Edge Function api en Deno]
   B -->|Correo y contraseña por HTTPS| AUTH[Supabase Auth]
   E -->|getUser del token| AUTH
-  E -->|Prisma 7 y pg| P[(PostgreSQL)]
+  E -->|Prisma 7 y pg con TLS| P[(PostgreSQL)]
   E --> ST[Storage product-images]
   C[Cron y Vault] -->|JOB_SECRET| J[Edge Function jobs]
   J --> P
@@ -23,6 +23,6 @@ El esquema está en `prisma/schema.prisma` y las tres migraciones en `prisma/mig
 
 `jobs` expira reservas y procesa la cola de reposición. El código integra Resend con reintentos e idempotencia; su existencia no demuestra entrega de correo. El enlace `wa.me` abre WhatsApp, sin enviar automáticamente un mensaje por Business API.
 
-PostgreSQL requiere una comprobación TLS independiente. La conexión local probada con `APP_DATABASE_URL` no estaba cifrada; no se debe inferir el estado remoto de Edge sin medirlo. Configurar la CA del proyecto y validar conexión y nombre antes de declarar TLS completo.
+PostgreSQL usa TLS obligatorio con la CA pública de docs/prod-ca-2021.crt, compartida por api, jobs y clientes administrativos. Se verificó certificado y hostname desde Node y Deno; api y jobs reportan TLS 1.3 en pg_stat_ssl. Supabase tiene Enforce SSL activo y rechaza conexiones sin cifrado. Las pruebas negativas rechazan CA ajena y hostname incorrecto. Prisma CLI también usa la CA con aceptación estricta.
 
 El despliegue trata frontend, API, migraciones y worker por separado. Actualizar la API no requiere migraciones ni activar Cron. Ver [informe de seguridad](seguridad-apis.md).

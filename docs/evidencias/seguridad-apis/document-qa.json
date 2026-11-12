@@ -1,9 +1,21 @@
 {
-  "verifiedAt": "2026-11-11T19:25:34.848Z",
+  "verifiedAt": "2026-11-12T02:36:43.016Z",
   "file": "docs/entregables/Lowkey_Saints_Seguridad_APIs_Despliegue.docx",
   "pages": 10,
   "renderer": "Microsoft Word 16 ExportAsFixedFormat and managed Poppler",
   "standardRenderer": "render_docx.py attempted; LibreOffice unavailable in Windows runtime",
-  "visualReview": "All ten page images inspected; no clipping, overlaps or split tables; title border removed and diagram labels corrected",
-  "conclusions": "Proposed texts by assigned module; team must review and adopt"
+  "visualReview": "Versión con TLS e integración aprobados; las diez páginas revisadas, con comprobación adicional de páginas 6 y 8",
+  "conclusions": "Proposed texts by assigned module; team must review and adopt",
+  "docxSha256": "fed1ec1419e94ec0d409d4b62df1daa00e58a1ba0f96e692c6a30859f0771f49",
+  "sourceReportSha256": "3c236937f3119acb62cdb6f8aaf2aa9c075ca97ee931975f015c21d416bd258b",
+  "renderedPdfSha256": "35f0676b0b52953068cbe31231c0f48bb40a990e8ff531f6ed328ce20f0b91e1",
+  "reviewedPages": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "focusedPageChecks": {
+    "pages": [6, 8],
+    "result": "Contenido y pies de página separados; sin recortes ni superposiciones"
+  },
+  "privateValuesScan": {
+    "checkedXmlParts": 14,
+    "matches": []
+  }
 }

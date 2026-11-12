@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-11-11T21:52:41.981Z",
+  "environment": "Deno local",
+  "passed": true,
+  "checks": [
+    {
+      "name": "CA y hostname reales",
+      "connected": true,
+      "expectedRejection": false,
+      "server": [
+        {
+          "ssl": true,
+          "version": "TLSv1.3",
+          "cipher": "TLS_AES_256_GCM_SHA384"
+        }
+      ]
+    },
+    {
+      "name": "CA ajena",
+      "connected": false,
+      "expectedRejection": true,
+      "error": "SELF_SIGNED_CERT_IN_CHAIN"
+    },
+    {
+      "name": "Hostname incorrecto",
+      "connected": false,
+      "expectedRejection": true,
+      "error": "ERR_TLS_CERT_ALTNAME_INVALID"
+    }
+  ]
+}

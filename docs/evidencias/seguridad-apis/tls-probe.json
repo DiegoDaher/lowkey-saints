@@ -1,6 +1,44 @@
 {
-  "timestamp": "2026-11-11T18:38:00.475Z",
-  "mode": "verify-full",
-  "blocked": true,
-  "error": "SELF_SIGNED_CERT_IN_CHAIN"
+  "timestamp": "2026-11-11T21:52:39.652Z",
+  "environment": "Node local a Supabase",
+  "mode": "CA y hostname obligatorios",
+  "caFingerprint256": "80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA",
+  "checks": [
+    {
+      "name": "CA proporcionada y hostname real",
+      "connected": true,
+      "expectedFailure": false,
+      "passed": true,
+      "clientEncrypted": true,
+      "clientAuthorized": true,
+      "server": [
+        {
+          "ssl": true,
+          "version": "TLSv1.3",
+          "cipher": "TLS_AES_256_GCM_SHA384"
+        }
+      ]
+    },
+    {
+      "name": "CA ajena debe rechazarse",
+      "connected": false,
+      "expectedFailure": true,
+      "passed": true,
+      "error": "SELF_SIGNED_CERT_IN_CHAIN"
+    },
+    {
+      "name": "Hostname incorrecto debe rechazarse",
+      "connected": false,
+      "expectedFailure": true,
+      "passed": true,
+      "error": "ERR_TLS_CERT_ALTNAME_INVALID"
+    },
+    {
+      "name": "Conexión sin TLS debe rechazarse",
+      "connected": false,
+      "expectedFailure": true,
+      "passed": true,
+      "error": "XX000"
+    }
+  ]
 }

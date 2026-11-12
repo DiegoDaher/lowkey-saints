@@ -12,7 +12,7 @@ flowchart LR
   U -->|HTTPS JSON| A[API en Supabase Edge Functions]
   U -->|HTTPS| H[Supabase Auth]
   A -->|Validar token| H
-  A -->|Prisma y pg — TLS pendiente| DB[(PostgreSQL)]
+  A -->|Prisma y pg — TLS verificado| DB[(PostgreSQL)]
   A --> S[Supabase Storage]
   J[Worker jobs] --> DB
   J -->|HTTPS — sujeto a configuración| R[Resend]
@@ -39,7 +39,7 @@ Copiar `.env.example` a `.env`, completar valores privados fuera de Git y ejecut
 | Edge Functions       | `APP_DATABASE_URL`, `ALLOWED_ORIGINS`, `RATE_LIMIT_SECRET`, `WHATSAPP_PHONE`. Secretos solo en servidor.              |
 | Worker               | `JOB_SECRET`, `RESEND_API_KEY`, `RESEND_FROM`, `SITE_URL`. Revisar cola antes de habilitar correos.                   |
 | Administración local | `DIRECT_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`; nunca incluirlos en el build del frontend.             |
-| Integración local    | `TEST_DATABASE_URL` a una base local desechable; el script rechaza hosts remotos.                                     |
+| Integración local    | IMPLEMENTADO y verificado                                                                                             | Migraciones y suite PostgreSQL aprobadas en contenedor aislado | Repetir ante cambios de dominio |
 
 `.vercelignore` excluye `.env*`, documentación, copias de trabajo, clientes generados y scripts del paquete del frontend. Las dos variables públicas también quedaron configuradas en Production de Vercel para futuros despliegues; ver vercel-env.json.
 
@@ -60,27 +60,27 @@ Las pruebas de navegador usan respuestas controladas para catálogo y pedidos. N
 
 ## Estado de la práctica
 
-| Requisito                  | Estado                    | Evidencia                                                          | Pendiente                                         |
-| -------------------------- | ------------------------- | ------------------------------------------------------------------ | ------------------------------------------------- |
-| Diagnóstico y arquitectura | IMPLEMENTADO              | Código, diagrama y captura local                                   | Mantener documentación                            |
-| Dos servicios web          | IMPLEMENTADO              | API propia 200 y Supabase Auth real; cloud.json                    | Catálogo remoto vacío                             |
-| Autorización               | IMPLEMENTADO              | Finanzas: anónimo 401, ADMIN 200, STAFF 403                        | Ampliar cobertura                                 |
-| Límite del cuerpo          | IMPLEMENTADO y publicado  | 30 pruebas; before-after.json; commit 1f8d450; backend-deploy.json | Ampliar pruebas HTTP locales                      |
-| Frontend en Vercel         | IMPLEMENTADO y verificado | HTTP 200, CORS permitido, redirección y TLS; publication.json      | Catálogo remoto vacío                             |
-| HTTPS Supabase             | IMPLEMENTADO y verificado | TLS 1.3; certificado validado                                      | Repetir control de vigencia                       |
-| TLS PostgreSQL             | EN PROCESO                | Conexión probada sin TLS; falla de CA al verificar                 | Configurar CA y verificar ambos tramos del pooler |
-| Integración local          | EN PROCESO                | ECONNREFUSED                                                       | Iniciar PostgreSQL local y repetir                |
-| Word y exposición          | IMPLEMENTADO              | Informe, guion y documento en docs/entregables                     | Revisar conclusiones individuales                 |
-| Cabeceras adicionales      | PROPUESTO                 | Sin configuración explícita en Next.js                             | Evaluar CSP y frame-ancestors                     |
+| Requisito                  | Estado                    | Evidencia                                                          | Pendiente                         |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------ | --------------------------------- |
+| Diagnóstico y arquitectura | IMPLEMENTADO              | Código, diagrama y captura local                                   | Mantener documentación            |
+| Dos servicios web          | IMPLEMENTADO              | API propia 200 y Supabase Auth real; cloud.json                    | Catálogo remoto vacío             |
+| Autorización               | IMPLEMENTADO              | Finanzas: anónimo 401, ADMIN 200, STAFF 403                        | Ampliar cobertura                 |
+| Límite del cuerpo          | IMPLEMENTADO y publicado  | 32 pruebas; before-after.json; commit 1f8d450; backend-deploy.json | Ampliar pruebas HTTP locales      |
+| Frontend en Vercel         | IMPLEMENTADO y verificado | HTTP 200, CORS permitido, redirección y TLS; publication.json      | Catálogo remoto vacío             |
+| HTTPS Supabase             | IMPLEMENTADO y verificado | TLS 1.3; certificado validado                                      | Repetir control de vigencia       |
+| TLS PostgreSQL             | IMPLEMENTADO y verificado | CA válida, TLS 1.3 en api y jobs, rechazo de conexión sin TLS      | Mantener vigencia de la CA        |
+| Integración local          | IMPLEMENTADO y verificado | Migraciones y suite PostgreSQL aprobadas en contenedor aislado     | Repetir ante cambios de dominio   |
+| Word y exposición          | IMPLEMENTADO              | Informe, guion y documento en docs/entregables                     | Revisar conclusiones individuales |
+| Cabeceras adicionales      | PROPUESTO                 | Sin configuración explícita en Next.js                             | Evaluar CSP y frame-ancestors     |
 
 La mejora limita JSON a **200 000 bytes** e imágenes a **5 242 880 bytes**, cancela el flujo al exceder el máximo y conserva el contrato de errores. Los límites exactos se aceptan; `Content-Length` no es la única comprobación.
 
 ## Orden para cerrar la práctica
 
 1. Revisar informe y evidencias, distinguiendo código, pruebas locales y nube.
-2. Completar TLS PostgreSQL con la CA oficial del proyecto; no usar `rejectUnauthorized: false`.
+2. Mantener la CA y la verificación estricta de PostgreSQL; Enforce SSL está activo en Supabase.
 3. Mantener publicación de la API y CORS; revisar Auth y notificaciones por separado.
-4. Iniciar PostgreSQL local y ejecutar integración.
+4. Repetir integración en PostgreSQL desechable cuando cambie el dominio o el esquema.
 5. Revisar las cuatro conclusiones propuestas y ensayar el guion de diez minutos.
 
 [Arquitectura](docs/Arquitectura.md) · [Informe](docs/seguridad-apis.md) · [Evidencias](docs/evidencias/seguridad-apis/README.md) · [Word](docs/entregables/Lowkey_Saints_Seguridad_APIs_Despliegue.docx)
