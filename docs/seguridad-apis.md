@@ -87,15 +87,15 @@ El código de reposición llama POST https://api.resend.com/emails con una clave
 
 # Parte 3 Seguridad de la aplicación
 
-| Control             | Riesgo y funcionamiento                                                       | Estado y evidencia                                           |
-| ------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Autenticación       | Evitar identidad falsa; validar bearer mediante Auth getUser                  | IMPLEMENTADO; sesión real y anónimo 401                      |
-| Autorización        | Impedir acceso financiero a STAFF; consultar perfil activo y rol              | IMPLEMENTADO; ADMIN 200 y STAFF 403                          |
-| Validación servidor | Evitar cantidades negativas y precios impuestos por el cliente; contratos Zod | IMPLEMENTADO; pruebas unitarias aprobadas                    |
-| Datos personales    | Restringir pedidos y suscripciones al panel; no devolver costos en catálogo   | IMPLEMENTADO en código; cobertura parcial                    |
-| Secretos            | Separar variables públicas de claves administrativas y cadenas SQL            | Exclusiones Git y Vercel; revisar configuración por servicio |
-| Errores             | Responder errores controlados y mensajes genéricos para fallos internos       | IMPLEMENTADO en código; JSON inválido genera 400             |
-| Recursos            | Limitar escrituras y tamaño del cuerpo recibido                               | Lector publicado y 32 pruebas unitarias; backend-deploy.json |
+| Control             | Riesgo y funcionamiento                                                       | Estado y evidencia                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Autenticación       | Evitar identidad falsa; validar bearer mediante Auth getUser                  | IMPLEMENTADO; sesión real y anónimo 401                                                                                                     |
+| Autorización        | Impedir acceso financiero a STAFF; consultar perfil activo y rol              | IMPLEMENTADO; ADMIN 200 y STAFF 403                                                                                                         |
+| Validación servidor | Evitar cantidades negativas y precios impuestos por el cliente; contratos Zod | IMPLEMENTADO; pruebas unitarias aprobadas                                                                                                   |
+| Datos personales    | Restringir pedidos y suscripciones al panel; no devolver costos en catálogo   | IMPLEMENTADO en código; cobertura parcial                                                                                                   |
+| Secretos            | Separar variables públicas de claves administrativas y cadenas SQL            | IMPLEMENTADO; .gitignore, .vercelignore, .env.example y vercel-env.json documentan exclusiones y nombres de variables, sin valores privados |
+| Errores             | Responder errores controlados y mensajes genéricos para fallos internos       | IMPLEMENTADO en código; JSON inválido genera 400                                                                                            |
+| Recursos            | Limitar escrituras y tamaño del cuerpo recibido                               | Lector publicado y 32 pruebas unitarias; backend-deploy.json                                                                                |
 
 ## Acceso permitido y rechazado
 
@@ -189,6 +189,34 @@ Mantener la CA y verificar su vigencia durante futuras publicaciones. La integra
 No se enviaron correos, no se realizaron pruebas de carga en la nube y no se ejecutaron migraciones para esta mejora. Las cargas excesivas se probaron localmente.
 
 La carpeta docs/evidencias/seguridad-apis conserva comandos, resultados, fecha, entorno y commit base. Los hashes de los archivos de evidencia se pueden consultar en manifest.json para identificar la versión que acompaña al documento.
+
+<!-- page -->
+
+# Alcance y elementos no aplicados
+
+IMPLEMENTADO, EN PROCESO y PROPUESTO describen el avance. N/A identifica un elemento que no aplica al diseño actual o una evidencia todavía no obtenida. La columna Motivo precisa el alcance de cada caso.
+
+| Elemento                                          | Estado                                           | Motivo                                                                                                                        |
+| ------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Instalación manual de certificados HTTPS públicos | N/A                                              | Vercel y Supabase administran los certificados del sitio y de sus APIs. La CA de PostgreSQL sí está configurada y verificada. |
+| WhatsApp Business API                             | N/A                                              | El proyecto utiliza enlaces wa.me para que el usuario continúe la comunicación.                                               |
+| Entrega real de correo con Resend                 | IMPLEMENTADO en código; evidencia de entrega N/A | Durante la práctica no se ejecutó ni verificó un envío real.                                                                  |
+| Política CSP propia                               | PROPUESTO; evidencia actual N/A                  | No se implementó entre las mejoras seleccionadas; queda pendiente definir y probar la política.                               |
+
+## Índice de evidencias por apartado
+
+Las rutas de esta tabla corresponden a la carpeta docs/evidencias/seguridad-apis del proyecto.
+
+| Apartado                      | Evidencia                                                              |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| 1 Diagnóstico del proyecto    | sistema-vercel.png y arquitectura.png                                  |
+| 2 Servicios web e integración | cloud.json con solicitudes y respuestas sanitizadas                    |
+| 3 Seguridad de la aplicación  | cloud.json y unit.json con casos permitidos, rechazados y validaciones |
+| 4 Despliegue HTTPS y TLS      | publication.json, tls-edge-after.json y tls-enforcement.json           |
+| 5 Mejora y pruebas            | before-after.json y unit.json; commits 1f8d450 y 654ee23               |
+| 6 Conclusiones y exposición   | Conclusiones individuales y guion incluidos en este documento          |
+
+Entregar el Word junto con la carpeta de evidencias y su manifest.json, o facilitar una versión del repositorio que contenga esos archivos y sea accesible al docente. Las evidencias conservan datos de prueba y valores privados ocultos.
 
 <!-- page -->
 
