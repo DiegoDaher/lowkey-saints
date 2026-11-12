@@ -28,6 +28,12 @@ enum SubscriptionStatus {
   UNSUBSCRIBED
 }
 
+enum OrderHistorySource {
+  CHECKOUT
+  MANUAL
+  EXPIRATION
+}
+
 enum NotificationStatus {
   PENDING
   PROCESSING
@@ -151,10 +157,24 @@ model Order {
   clientPhone    String
   expiresAt      DateTime
   items          OrderItem[]
+  history        OrderStatusHistory[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
   @@index([status, expiresAt])
+}
+
+model OrderStatusHistory {
+  id         String             @id @default(uuid())
+  orderId    String
+  order      Order              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  createdAt  DateTime           @default(now())
+  source     OrderHistorySource
+  actorId    String?            @db.Uuid
+
+  @@index([orderId, createdAt])
 }
 
 model OrderItem {

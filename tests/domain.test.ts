@@ -1,5 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { WhatsAppMessageSerializer } from "../supabase/functions/_shared/orders/infra/WhatsAppMessageSerializer.ts";
+
+test("WhatsApp URL preserves the persisted order and encodes special characters", () => {
+  const url = new WhatsAppMessageSerializer().serialize("525555555555", {
+    orderNumber: 42,
+    clientName: "José & Ana #1 🖤",
+    totalAmount: 300.75,
+    currency: "MXN",
+    expiresAt: new Date("2026-10-29T12:00:00Z"),
+    items: [
+      { quantity: 2, productName: "Algodón & lino", size: "M", color: "Negro" },
+      { quantity: 1, productName: "Playera #2 🖤", size: "L", color: "Azul" },
+    ],
+  });
+  const expected = [
+    "Hola, mi pedido es #42",
+    "José & Ana #1 🖤",
+    "2 × Algodón & lino / M / Negro",
+    "1 × Playera #2 🖤 / L / Azul",
+    "Total: $300.75 MXN",
+    "Reserva hasta 2026-10-29T12:00:00.000Z",
+  ].join("\n");
+  assert.equal(
+    url,
+    "https://wa.me/525555555555?text=" + encodeURIComponent(expected)
+  );
+  assert.equal(new URL(url).searchParams.get("text"), expected);
+  assert.ok(url.includes("%0A"));
+});
 import {
   mergeItems,
   requireTransition,
