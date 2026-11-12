@@ -44,7 +44,7 @@ export default function Footer() {
           <a
             aria-label="Lowkey Saints en Instagram"
             className="hover:text-muted inline-flex items-center gap-2 text-sm font-medium transition-colors"
-            href="https://www.instagram.com/"
+            href="https://www.instagram.com/lowkey_saints/"
             rel="noreferrer"
             target="_blank"
           >
