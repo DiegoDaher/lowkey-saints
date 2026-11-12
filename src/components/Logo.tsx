@@ -1,18 +1,21 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Logo() {
   return (
     <Link
       aria-label="Lowkey Saints, inicio"
-      className="group inline-flex flex-col items-center leading-none"
+      className="group inline-flex h-16 w-32 items-center justify-center overflow-hidden"
       href="/"
     >
-      <span className="font-display text-[1.35rem] font-bold tracking-[0.2em]">
-        LOWKEY
-      </span>
-      <span className="font-script decoration-gold -mt-0.5 text-[1.15rem] font-normal tracking-normal underline decoration-2 underline-offset-2">
-        Saints
-      </span>
+      <Image
+        alt="Lowkey Saints"
+        className="h-full w-full object-contain"
+        height={1280}
+        priority
+        src="/lowkey%20Saints%20Imagen.png"
+        width={1280}
+      />
     </Link>
   );
 }

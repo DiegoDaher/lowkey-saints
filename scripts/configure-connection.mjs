@@ -1,3 +1,4 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import pg from "pg";
 import { readFile, writeFile } from "node:fs/promises";
@@ -11,7 +12,7 @@ if (!process.env.DIRECT_URL) {
 }
 async function probe(url) {
   const c = new pg.Client({
-    connectionString: url.toString(),
+    ...postgresTlsConfig(url.toString()),
     connectionTimeoutMillis: 10000,
   });
   try {

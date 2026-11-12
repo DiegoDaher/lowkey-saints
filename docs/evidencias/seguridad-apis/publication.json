@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-11-11T21:53:37.030Z",
+  "site": "https://lowkey-saints.vercel.app",
+  "checks": [
+    {
+      "request": "https://lowkey-saints.vercel.app/",
+      "status": 200,
+      "location": null
+    },
+    {
+      "request": "https://lowkey-saints.vercel.app/admin",
+      "status": 307,
+      "location": "/admin/login"
+    },
+    {
+      "request": "GET /products con Origin Vercel",
+      "status": 200,
+      "allowOrigin": "https://lowkey-saints.vercel.app"
+    }
+  ],
+  "certificate": {
+    "authorized": true,
+    "protocol": "TLSv1.3",
+    "validFrom": "Oct 31 11:46:10 2026 GMT",
+    "validTo": "Jan 29 11:46:09 2027 GMT",
+    "issuer": "Google Trust Services"
+  }
+}

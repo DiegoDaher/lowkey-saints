@@ -1,26 +1,6 @@
-export class AppError extends Error {
-  constructor(
-    public status: number,
-    message: string
-  ) {
-    super(message);
-  }
-}
-export function requireTransition(
-  from: string,
-  to: string,
-  expiresAt: Date,
-  now: Date
-) {
-  const allowed: Record<string, string[]> = {
-    PENDING_PAYMENT: ["CONFIRMED", "CANCELLED"],
-    CONFIRMED: ["SHIPPED"],
-  };
-  if (!allowed[from]?.includes(to))
-    throw new AppError(409, "Transición de pedido no permitida");
-  if (to === "CONFIRMED" && expiresAt <= now)
-    throw new AppError(409, "El pedido venció");
-}
+import { AppError } from "./AppError.ts";
+export { AppError } from "./AppError.ts";
+export { requireTransition } from "./orders/domain/OrderStateValidator.ts";
 export function mergeItems(items: { variantId: string; quantity: number }[]) {
   const grouped = new Map<string, number>();
   for (const item of items)

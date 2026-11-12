@@ -1,6 +1,6 @@
 const labels: Record<string, string> = {
   PENDING_PAYMENT: "Pendiente de pago",
-  CONFIRMED: "Pago confirmado",
+  CONFIRMED: "Confirmado",
   SHIPPED: "Enviado",
   CANCELLED: "Cancelado",
   ACTIVE: "Activa",

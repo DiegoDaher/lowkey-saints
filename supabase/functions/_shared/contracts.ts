@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  orderStatuses,
+  type OrderStatus,
+  type OrderAction,
+} from "./orders/domain/OrderStateValidator.ts";
+export type { OrderStatus, OrderAction };
+export const orderStatusInput = z.enum(orderStatuses);
 export const id = z.string().uuid();
 export const money = z
   .string()
@@ -135,7 +142,7 @@ export interface CatalogProduct {
 export interface OrderReceipt {
   id: string;
   orderNumber: number;
-  status: string;
+  status: OrderStatus;
   totalAmount: string;
   expiresAt: string;
   whatsappUrl: string;
@@ -143,7 +150,10 @@ export interface OrderReceipt {
 export interface AdminOrder {
   id: string;
   orderNumber: number;
-  status: string;
+  status: OrderStatus;
+  availableActions: OrderAction[];
+  createdAt: string;
+  updatedAt: string;
   clientName: string;
   clientPhone: string;
   totalAmount: string;
@@ -155,4 +165,13 @@ export interface AdminOrder {
     quantity: number;
     price: string;
   }[];
+}
+
+export interface OrderHistoryEntry {
+  id: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  createdAt: string;
+  source: "CHECKOUT" | "MANUAL" | "EXPIRATION";
+  actorId: string | null;
 }

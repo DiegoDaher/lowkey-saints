@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lowkey Saints
 
-## Getting Started
+Tienda de ropa con catálogo, filtros, variantes, bolsa, pedidos mediante enlace WhatsApp y administración de inventario y finanzas. Desarrollo Web Integral, **10A BIS**, noviembre de 2026.
 
-First, run the development server:
+## Arquitectura real
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Next.js 16.3.6 y React 19 presentan la interfaz. Una API REST en **Supabase Edge Functions**, escrita en TypeScript para Deno, utiliza Prisma 7 y PostgreSQL. Supabase proporciona Auth y Storage; el worker de reposición contiene integración con Resend. WhatsApp utiliza `wa.me`: no es WhatsApp Business API.
+
+```mermaid
+flowchart LR
+  U[Navegador] -->|HTTPS| N[Next.js en Vercel]
+  U -->|HTTPS JSON| A[API en Supabase Edge Functions]
+  U -->|HTTPS| H[Supabase Auth]
+  A -->|Validar token| H
+  A -->|Prisma y pg — TLS verificado| DB[(PostgreSQL)]
+  A --> S[Supabase Storage]
+  J[Worker jobs] --> DB
+  J -->|HTTPS — sujeto a configuración| R[Resend]
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Frontend: **https://lowkey-saints.vercel.app**. El estado funcional se registra en [el informe](docs/seguridad-apis.md) y [las evidencias](docs/evidencias/seguridad-apis/README.md). Una publicación exitosa no demuestra todos los flujos.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Equipo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Integrante                       | Módulos                                        |
+| -------------------------------- | ---------------------------------------------- |
+| Adriana Colín Múñoz              | Landing, catálogo, filtros y Completa el look  |
+| Manuel Alejandro Hernández Rubio | Ficha de producto, variantes y carrito lateral |
+| Michelle Córdova Torres          | Administración, inventario y finanzas          |
+| Diego Daher Díaz Contreras       | Pedidos WhatsApp, automatización y reposición  |
 
-## Learn More
+## Configurar y ejecutar
 
-To learn more about Next.js, take a look at the following resources:
+Copiar `.env.example` a `.env`, completar valores privados fuera de Git y ejecutar `npm ci` y `npm run dev`. La web abre en `http://localhost:3000`; requiere una API de Supabase configurada. Revisar destino y respaldo antes de ejecutar migraciones.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Entorno              | Variables y responsabilidad                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Next.js y Vercel     | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Configuración pública, sin acceso administrativo. |
+| Edge Functions       | `APP_DATABASE_URL`, `ALLOWED_ORIGINS`, `RATE_LIMIT_SECRET`, `WHATSAPP_PHONE`. Secretos solo en servidor.              |
+| Worker               | `JOB_SECRET`, `RESEND_API_KEY`, `RESEND_FROM`, `SITE_URL`. Revisar cola antes de habilitar correos.                   |
+| Administración local | `DIRECT_URL`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`; nunca incluirlos en el build del frontend.             |
+| Integración local    | IMPLEMENTADO y verificado                                                                                             | Migraciones y suite PostgreSQL aprobadas en contenedor aislado | Repetir ante cambios de dominio |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`.vercelignore` excluye `.env*`, documentación, copias de trabajo, clientes generados y scripts del paquete del frontend. Las dos variables públicas también quedaron configuradas en Production de Vercel para futuros despliegues; ver vercel-env.json.
 
-## Deploy on Vercel
+## Pruebas
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run test:unit
+npm run check:edge
+npm run check-types
+npm run lint
+npm run build
+npm run test:integration
+# Con npm run dev activo en otra terminal:
+npm run test:browser
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Las pruebas de navegador usan respuestas controladas para catálogo y pedidos. No equivalen a una compra en nube. Integración crea y elimina una base temporal únicamente en PostgreSQL local.
+
+## Estado de la práctica
+
+| Requisito                  | Estado                    | Evidencia                                                          | Pendiente                         |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------ | --------------------------------- |
+| Diagnóstico y arquitectura | IMPLEMENTADO              | Código, diagrama y captura local                                   | Mantener documentación            |
+| Dos servicios web          | IMPLEMENTADO              | API propia 200 y Supabase Auth real; cloud.json                    | Catálogo remoto vacío             |
+| Autorización               | IMPLEMENTADO              | Finanzas: anónimo 401, ADMIN 200, STAFF 403                        | Ampliar cobertura                 |
+| Límite del cuerpo          | IMPLEMENTADO y publicado  | 32 pruebas; before-after.json; commit 1f8d450; backend-deploy.json | Ampliar pruebas HTTP locales      |
+| Frontend en Vercel         | IMPLEMENTADO y verificado | HTTP 200, CORS permitido, redirección y TLS; publication.json      | Catálogo remoto vacío             |
+| HTTPS Supabase             | IMPLEMENTADO y verificado | TLS 1.3; certificado validado                                      | Repetir control de vigencia       |
+| TLS PostgreSQL             | IMPLEMENTADO y verificado | CA válida, TLS 1.3 en api y jobs, rechazo de conexión sin TLS      | Mantener vigencia de la CA        |
+| Integración local          | IMPLEMENTADO y verificado | Migraciones y suite PostgreSQL aprobadas en contenedor aislado     | Repetir ante cambios de dominio   |
+| Word y exposición          | IMPLEMENTADO              | Informe, guion y documento en docs/entregables                     | Revisar conclusiones individuales |
+| Cabeceras adicionales      | PROPUESTO                 | Sin configuración explícita en Next.js                             | Evaluar CSP y frame-ancestors     |
+
+La mejora limita JSON a **200 000 bytes** e imágenes a **5 242 880 bytes**, cancela el flujo al exceder el máximo y conserva el contrato de errores. Los límites exactos se aceptan; `Content-Length` no es la única comprobación.
+
+## Orden para cerrar la práctica
+
+1. Revisar informe y evidencias, distinguiendo código, pruebas locales y nube.
+2. Mantener la CA y la verificación estricta de PostgreSQL; Enforce SSL está activo en Supabase.
+3. Mantener publicación de la API y CORS; revisar Auth y notificaciones por separado.
+4. Repetir integración en PostgreSQL desechable cuando cambie el dominio o el esquema.
+5. Revisar las cuatro conclusiones propuestas y ensayar el guion de diez minutos.
+
+[Arquitectura](docs/Arquitectura.md) · [Informe](docs/seguridad-apis.md) · [Evidencias](docs/evidencias/seguridad-apis/README.md) · [Word](docs/entregables/Lowkey_Saints_Seguridad_APIs_Despliegue.docx)
+
+Repositorio: https://github.com/DiegoDaher/lowkey-saints

@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-11-11T18:42:26.093Z",
+  "environment": "local, lector de cuerpos; no es una solicitud HTTP remota",
+  "commitBefore": "6185d144f5fbf29d0bafd867047a61b6cceb5197",
+  "payload": {
+    "characters": 100002,
+    "bytes": 200002
+  },
+  "before": {
+    "accepted": true
+  },
+  "after": {
+    "errorStatus": 413,
+    "reads": 2,
+    "cancelled": true
+  },
+  "conclusion": "El lector anterior admitía JSON multibyte superior a 200000 bytes; el nuevo lo rechaza y cancela el flujo al exceder el límite."
+}

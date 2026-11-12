@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-11-11T21:59:02.160Z",
+  "image": "postgres:15",
+  "container": "lowkey-saints-integration",
+  "binding": "127.0.0.1:55439",
+  "temporaryDatabaseDeleted": true,
+  "containerRemoved": true
+}

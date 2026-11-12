@@ -1,0 +1,16 @@
+.env*
+out/
+docs/
+scripts/
+tests/
+supabase/.temp/
+supabase/functions/node_modules/
+supabase/functions/_shared/generated/
+.git/
+.aws/
+.codex/
+.agents/
+test-results/
+playwright-report/
+AGENTS.md
+CLAUDE.md

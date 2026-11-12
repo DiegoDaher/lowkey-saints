@@ -1,0 +1,204 @@
+{
+  "timestamp": "2026-11-12T02:55:16.279Z",
+  "improvementCommit": "1f8d45092ecf9c501aa50a615cdece19c1d0cbec",
+  "tlsCommit": "654ee23",
+  "commitAtCapture": "03f5b61606488da98f2ce2bb8e6f9837548c9adb",
+  "secretScan": "No configured private values found in checked text files",
+  "files": [
+    {
+      "path": "docs/evidencias/seguridad-apis/README.md",
+      "bytes": 6727,
+      "sha256": "f0a874c80c8d48e655eb071010a14180ee6373b8bb8326275d17ac13718c5316"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/arquitectura.png",
+      "bytes": 63355,
+      "sha256": "1fe55b9e9d59dbd65caba62684ad0452fc660e06c538720d9d7160092638a31c"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/backend-backup.json",
+      "bytes": 428,
+      "sha256": "eade418e3369c64fc70f6a4a51c7bb48083552c35b1c8fb5a01173907e275305"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/backend-cors.json",
+      "bytes": 409,
+      "sha256": "2504424afde8c7ec5e0495afa3a4ec385c4b729ad4f7b5ebed2e980523d93cd6"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/backend-deploy.json",
+      "bytes": 2881,
+      "sha256": "bab80ebcf05b4d8b80e2744e4900863e30ab15c8de7d5e074f42b5b621fd8cbf"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/before-after.json",
+      "bytes": 521,
+      "sha256": "8dc137283452f29342263d080429c869c12cb82df5594c98865a5a5cadaaadf4"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/browser.json",
+      "bytes": 635,
+      "sha256": "18ce9a030f6e6dbb459cde9aac6e8aa212f87711aa51bd683ba0671b7ba335cc"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/build.json",
+      "bytes": 1070,
+      "sha256": "497b9602044d9297446262eeacc8e0a02b57d0f4dcb3315562c41c470a9a9ac1"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/cloud.json",
+      "bytes": 2679,
+      "sha256": "f64c69489101dccec4463c15d9ce33bb50e766eb34875785dfd7b90f36c44b79"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/document-qa.json",
+      "bytes": 1247,
+      "sha256": "0481be7ac0b37c5642c57930bb828b47a72cb4273ad3c7378d87b106808e01f9"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/edge.json",
+      "bytes": 456,
+      "sha256": "181e80b0cb46a720c29035b7ea72cb4acf941de6f3133826831290e0e9ff3cb6"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/integration-environment.json",
+      "bytes": 212,
+      "sha256": "6a72f846d00cbf6f2865ab2ed76be36f5727011910b17a20cc291d3105d67731"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/integration.json",
+      "bytes": 863,
+      "sha256": "42a6aa96eeb0246d67afd8728dd58da31c238aabc222887620292adb6b16e5c9"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/lint.json",
+      "bytes": 220,
+      "sha256": "5317c699228fd4e589b479e127b78f9b6e7aa8602c4c918a090b2985c14921ca"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/login-local.png",
+      "bytes": 38647,
+      "sha256": "67380e00375448547127c3251ea0fdad614ac6eb149621fbd7cc68c56c8a434a"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/publication.json",
+      "bytes": 690,
+      "sha256": "48eae7f8ffd9c65919a4e66d030d2e3d9fe7042e33e73add99c85af94944deee"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/sistema-local.png",
+      "bytes": 324759,
+      "sha256": "2d012e2355d3d387fbcc5431a80abb3e5602272ecbf7867f4b80da507b16300d"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/sistema-vercel.png",
+      "bytes": 282827,
+      "sha256": "ad893cd42a3da255de9ff4394e0e32944bd08a7002357c2afa2725c108893335"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-backup.json",
+      "bytes": 918,
+      "sha256": "95c7c5687e49e863dcb7d4ccfadfffba3cd033ba4e5d3d0d5e9415a6c17a5804"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-deno.json",
+      "bytes": 665,
+      "sha256": "3836876ded40869c3d62fddd275881a9c8c7bb676a475c1a2ecff701f9b9a3f3"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-deploy.json",
+      "bytes": 5898,
+      "sha256": "88fe10d995bc5a7c6fb40d95ad11e5b1957f8b9937bb3f8da0680cd6fe1d37e2"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-edge-after.json",
+      "bytes": 694,
+      "sha256": "952d54f93628722814becde2ac4db174cb7a3e4e590b4d1f79683f33e62eb2ce"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-edge-before.json",
+      "bytes": 647,
+      "sha256": "d9d2198b1ec23d56845bf0037ef4c8c691992c5015e40faeb8729bc37a8f6a62"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-enforcement.json",
+      "bytes": 274,
+      "sha256": "7232495a344be6b2cfebf6bd9046e54997062edf3d0f11fa66426da851a46079"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/tls-probe.json",
+      "bytes": 1152,
+      "sha256": "be5fa0f3935d943776009af3d09734d1522ead3a8fb506a912b3e2d531da2a71"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/types.json",
+      "bytes": 227,
+      "sha256": "77743945ef0e01737e51cfd3ab800163311b681c0383dc2fcdf2c81f8ec573ba"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/unit.json",
+      "bytes": 5624,
+      "sha256": "fbf38538060402969703e4bb10488ba9802c59307cfabb4ac383b602514f9d07"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/vercel-deploy.json",
+      "bytes": 4140,
+      "sha256": "7380290352c31259ffd0fd00a7d1e586dfbb384fc8ee4cae5129732151da4f5f"
+    },
+    {
+      "path": "docs/evidencias/seguridad-apis/vercel-env.json",
+      "bytes": 296,
+      "sha256": "89320dd938f5993bf0ca0f20de373ccbc521a38cdc14b94ad0053395ade84321"
+    },
+    {
+      "path": "docs/prod-ca-2021.crt",
+      "bytes": 1367,
+      "sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7"
+    },
+    {
+      "path": "supabase/functions/_shared/postgres-tls.mjs",
+      "bytes": 2110,
+      "sha256": "d1726440516a2f1210442c8d857e48e8bf4f630db998e7e8fdfc2f1889f80d12"
+    },
+    {
+      "path": "supabase/functions/_shared/db.ts",
+      "bytes": 439,
+      "sha256": "e52dd7fe66db2492b7a9693ed09f02eef04655e23e9f7ce89e7eb4f01a9c66b3"
+    },
+    {
+      "path": "tests/postgres-tls.test.ts",
+      "bytes": 1337,
+      "sha256": "bfe942e59f5494ad57f0e9cac088bebf86b481c6755102cc96c1692b3eb8564b"
+    },
+    {
+      "path": "supabase/functions/_shared/request-body.ts",
+      "bytes": 1500,
+      "sha256": "6dbda248162c20618f218420911e49642fa3649fe4b97cc069d79b3b831003c0"
+    },
+    {
+      "path": "supabase/functions/api/index.ts",
+      "bytes": 17445,
+      "sha256": "bd61f30c60d9c3e439e6bfbb9c852a096c4df1db804c99c75e0916842e3d4f40"
+    },
+    {
+      "path": "tests/request-body.test.ts",
+      "bytes": 3982,
+      "sha256": "37902ecca13e1fa035859feb99464e629f2bf4fd2249af0e48a8119dada3aa8d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6690,
+      "sha256": "bd5bb90434d0cdacecba9fa173428c420839bb2beb4a658a34495d9d456ba6bd"
+    },
+    {
+      "path": "docs/seguridad-apis.md",
+      "bytes": 26711,
+      "sha256": "f1b3c5f1853e7429d799202f550e27e93b5b6968172291f82370bf490c04bcee"
+    },
+    {
+      "path": "docs/entregables/Lowkey_Saints_Seguridad_APIs_Despliegue.docx",
+      "bytes": 386268,
+      "sha256": "d19093f44ef19ec899e57d3b9a1627cb535fe49b5cd55a92b83cea07ef5acef5"
+    }
+  ]
+}

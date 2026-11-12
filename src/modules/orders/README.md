@@ -12,16 +12,24 @@
 
 - **Objetivo:** Transformar el carrito en una orden persistida y redirigir al checkout conversacional.
 - **Entregables:**
-  - `src/modules/orders/application/CreateOrderUseCase.ts`: Registra la orden con estado inicial `PENDING_PAYMENT` y reserva provisional de existencias.
-  - `src/modules/orders/infra/WhatsAppMessageSerializer.ts`: Genera un mensaje legible con resumen de productos, tallas, total y código de orden codificado en formato `https://wa.me/<telefono>?text=...`.
+  - `supabase/functions/_shared/orders/application/CreateOrderUseCase.ts`: Registra la orden con estado explícito `PENDING_PAYMENT`, moneda `MXN` y reserva de existencias durante **24 horas**. Consulta precios en la base de datos y guarda datos históricos de los artículos. La reserva y la orden se confirman en una transacción serializable, con reintentos e idempotencia.
+  - `supabase/functions/_shared/orders/infra/WhatsAppMessageSerializer.ts`: Serializador puro que recibe el teléfono comercial validado y el pedido persistido. Genera `https://wa.me/<telefono>?text=...` con número de pedido, comprador, cantidades, productos, tallas, colores, total y vencimiento ISO.
 
-### [LOG-02] Máquina de Estados de Compra y Tracking de Pedidos
+El backend de LOG-01 vive en Supabase Edge Functions. `ShopService.createOrder` delega en el caso de uso y `POST /v1/orders` conserva su contrato y valida `WHATSAPP_PHONE` antes de reservar. No requiere migraciones ni dependencias nuevas.
 
-- **Objetivo:** Ciclo de vida estricto para cada pedido.
-- **Entregables:**
-  - Enum de estados: `PENDING_PAYMENT` -> `CONFIRMED` -> `SHIPPED` -> `CANCELLED`.
-  - Invariantes de transición en `src/modules/orders/domain/OrderStateValidator.ts` (impedir transiciones ilegales, ej. `CANCELLED` a `SHIPPED`).
-  - Vista en Backoffice `src/app/(admin)/ordenes/page.tsx` para actualización manual por operadores mediante etiquetas dinámicas.
+El checkout permanece en `/bolsa`: tras crear el pedido se muestra **Continuar en WhatsApp**. El comprador envía el mensaje desde WhatsApp. Ante errores se conservan el carrito y la clave de idempotencia para reintentar; el carrito se limpia únicamente tras una respuesta exitosa.
+
+LOG-01 no incluye un carrito lateral nuevo ni modifica estados posteriores, cron o notificaciones de restock. La duración implementada es de 24 horas; la referencia de 30–60 minutos de LOG-03 no se aplica a este trabajo.
+
+Verificación: `npm run test:unit`, `npm run test:integration` (PostgreSQL local desechable), `npm run test:browser` (tienda local en puerto 3000), `npm run lint`, `npm run check-types` y `npm run check:edge`. Las pruebas de navegador simulan la API; la persistencia y concurrencia se verifican en integración.
+
+Validación local de LOG-01 (2026-10-28): 6 pruebas unitarias y 3 de navegador aprobadas; lint, tipos y `check:edge` aprobados. La integración queda **pendiente**, porque PostgreSQL en `127.0.0.1:55439` rechazó la conexión y el motor de Docker no estaba activo. El archivo de integración pasó `deno check`, lo que no sustituye su ejecución contra PostgreSQL. No se desplegó a producción.
+
+### [LOG-02] Estados e historial de pedidos
+
+Implementado sobre Supabase Edge Functions y la pantalla `/admin/ordenes`. Conserva los cuatro estados existentes, permite cancelar solamente pendientes y registra los cambios efectivos en un historial transaccional de solo insercion. La API calcula las acciones disponibles; el Backoffice muestra etiquetas, confirmaciones, filtro, paginacion e historial, con refresco cada 30 segundos.
+
+Rutas adaptadas a la arquitectura real: `supabase/functions/_shared/orders/domain/OrderStateValidator.ts` y `src/app/admin/ordenes/page.tsx`. La migracion `202611110001_order_history` agrega el historial sin reconstruir eventos antiguos. Ver [reglas, contratos, pruebas y despliegue](../../../docs/log-02.md).
 
 ### [LOG-03] Cron Jobs de Expiración y Liberación Atómica de Stock
 
@@ -57,6 +65,8 @@
 ---
 
 ## Estructura del Módulo
+
+La estructura siguiente corresponde a la propuesta original del módulo completo. Para LOG-01, las rutas implementadas son las de Supabase indicadas arriba.
 
 ```text
 src/

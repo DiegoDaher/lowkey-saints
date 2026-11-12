@@ -17,7 +17,8 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
     if (payload.probe) {
       const result = await db.$transaction(
-        (tx) => tx.$queryRaw`SELECT 1 AS ok`
+        (tx) =>
+          tx.$queryRaw`SELECT 1 AS ok, ssl, version, cipher FROM pg_stat_ssl WHERE pid=pg_backend_pid()`
       );
       return Response.json({ transaction: result });
     }

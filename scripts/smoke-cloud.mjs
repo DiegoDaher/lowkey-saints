@@ -1,3 +1,4 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
@@ -10,7 +11,7 @@ if (!url || !key || !process.env.SUPABASE_SECRET_KEY)
 const auth = createClient(url, process.env.SUPABASE_SECRET_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const sql = new pg.Client({ connectionString: process.env.DIRECT_URL });
+const sql = new pg.Client({ ...postgresTlsConfig(process.env.DIRECT_URL) });
 await sql.connect();
 const users = [],
   products = [],

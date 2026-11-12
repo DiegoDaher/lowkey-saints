@@ -1,112 +1,28 @@
-# Arquitectura y estructura
+# Arquitectura de Lowkey Saints
 
-## Resumen
+La interfaz usa Next.js 16 App Router y React. Las páginas viven en `src/app`; los componentes implementan catálogo, ficha, bolsa y administración. `src/proxy.ts` redirige visitantes sin sesión al login. La autorización efectiva se realiza en la API.
 
-El proyecto usa Next.js 16 con App Router y TypeScript. La interfaz y las rutas HTTP viven en `src/app`; la lógica de negocio se organiza por módulos en `src/modules`; las capacidades transversales se separan entre `src/core`, `src/server` y `src/shared`.
+`src/lib/api.ts` llama a `/functions/v1/api/v1` en Supabase. No hay Route Handlers de negocio en Next.js. `src/server/db/prisma.ts` reexporta el cliente HTTP; no conecta PostgreSQL. La estructura antigua descrita aquí no representaba el sistema y fue sustituida por este diagnóstico.
 
-La regla principal es mantener el conocimiento específico de un dominio dentro de su módulo. Las dependencias de infraestructura, como Prisma, autenticación o correo, no deben filtrarse innecesariamente hacia la interfaz.
-
-## Estructura del repositorio
-
-```text
-.
-├── docs/                 # documentación técnica
-├── prisma/               # esquema, migraciones y configuración de Prisma
-├── public/               # recursos estáticos
-├── src/
-│   ├── app/              # App Router de Next.js: páginas, layouts y API
-│   ├── core/             # piezas centrales y contratos compartidos del dominio
-│   ├── modules/          # módulos de negocio aislados
-│   ├── server/           # integraciones exclusivamente de servidor
-│   └── shared/           # utilidades, configuración y UI reutilizable
-├── supabase/             # migraciones y seeds de Supabase
-├── eslint.config.mjs     # reglas de ESLint
-├── .prettierrc           # formato y ordenación de clases Tailwind
-├── prisma7.config.ts     # ubicación del schema y migraciones Prisma
-└── package.json          # scripts, dependencias y lint-staged
+```mermaid
+flowchart TD
+  B[Navegador] -->|HTTPS| V[Next.js en Vercel]
+  B -->|HTTPS y JWT para administración| E[Edge Function api en Deno]
+  B -->|Correo y contraseña por HTTPS| AUTH[Supabase Auth]
+  E -->|getUser del token| AUTH
+  E -->|Prisma 7 y pg con TLS| P[(PostgreSQL)]
+  E --> ST[Storage product-images]
+  C[Cron y Vault] -->|JOB_SECRET| J[Edge Function jobs]
+  J --> P
+  J -->|HTTPS| R[Resend]
 ```
 
-## Aplicación web
+La API valida el token con Auth y consulta `AdminProfile.active` y `role`. ADMIN accede a finanzas y roles; STAFF opera catálogo, inventario y pedidos. El precio se calcula en servidor y las reservas se guardan en transacciones. RLS y permisos SQL aportan defensa adicional; Prisma no hereda automáticamente la identidad JWT del navegador.
 
-`src/app` es la frontera de Next.js:
+El esquema está en `prisma/schema.prisma` y las tres migraciones en `prisma/migrations`. Las funciones comparten contratos Zod, servicio de negocio, lector acotado y notificaciones. El lector acepta hasta 200 000 bytes JSON o 5 MiB de imágenes, cancela el flujo al excederlos y genera `AppError(413)`.
 
-- `layout.tsx` define el layout raíz, metadatos y estilos globales.
-- `globals.css` importa Tailwind CSS y define las variables visuales globales.
-- `(admin)/` es un route group para las áreas administrativas. Actualmente contiene las áreas `inventario`, `ordenes` y `restock` como estructura preparada.
-- `(public)/` está reservado para rutas públicas y actualmente no contiene implementación.
-- `api/` reserva las rutas HTTP. Dentro están preparados `v1/` para la API versionada y `cron/expire-holds/` para la expiración de retenciones de stock.
+`jobs` expira reservas y procesa la cola de reposición. El código integra Resend con reintentos e idempotencia; su existencia no demuestra entrega de correo. El enlace `wa.me` abre WhatsApp, sin enviar automáticamente un mensaje por Business API.
 
-Los nombres entre paréntesis son route groups de Next.js: ayudan a organizar rutas sin formar parte de la URL. Una nueva página debe permanecer en `src/app` y delegar la lógica de negocio al módulo correspondiente.
+PostgreSQL usa TLS obligatorio con la CA pública de docs/prod-ca-2021.crt, compartida por api, jobs y clientes administrativos. Se verificó certificado y hostname desde Node y Deno; api y jobs reportan TLS 1.3 en pg_stat_ssl. Supabase tiene Enforce SSL activo y rechaza conexiones sin cifrado. Las pruebas negativas rechazan CA ajena y hostname incorrecto. Prisma CLI también usa la CA con aceptación estricta.
 
-## Módulos de negocio
-
-Cada módulo de `src/modules` sigue la misma división:
-
-```text
-src/modules/<modulo>/
-├── application/  # casos de uso y coordinación de operaciones
-├── domain/       # entidades, reglas e invariantes del negocio
-├── infra/        # repositorios y adaptadores externos del módulo
-└── ui/           # componentes y presentación específica del módulo
-```
-
-Módulos previstos:
-
-- `catalog`: productos, variantes y consulta del catálogo.
-- `inventory`: existencias y disponibilidad de variantes.
-- `orders`: creación y ciclo de vida de pedidos.
-- `restock`: alertas y procesos de reposición.
-
-Las carpetas muestran la arquitectura objetivo; antes de asumir que una operación está disponible hay que verificar que exista código dentro de la capa correspondiente.
-
-## Capas transversales
-
-- `src/core/application`: contratos o servicios de aplicación compartidos entre módulos.
-- `src/core/domain`: conceptos y reglas centrales que no pertenecen a un único módulo.
-- `src/core/infra`: implementaciones técnicas comunes.
-- `src/server/auth`: integración de autenticación del lado servidor.
-- `src/server/db`: cliente Prisma compartido. `src/server/db/prisma.ts` evita crear múltiples clientes en desarrollo.
-- `src/server/mail`: integración de correo, incluyendo Resend y plantillas React Email cuando se implementen.
-- `src/shared/config`: configuración no específica de un dominio.
-- `src/shared/hooks`: hooks reutilizables de React.
-- `src/shared/lib`: funciones utilitarias compartidas.
-- `src/shared/ui`: componentes visuales reutilizables.
-
-Las carpetas vacías son puntos de extensión, no módulos funcionales por sí mismos.
-
-## Persistencia
-
-El schema de PostgreSQL está en `prisma/schema.prisma`. El modelo actual contempla:
-
-- `Product` y `ProductVariant` para productos, tallas, colores y SKU.
-- `Order` y `OrderItem` para pedidos y sus líneas.
-- `RestockAlert` para avisos de reposición.
-- `Role` y `OrderStatus` como enums de dominio/persistencia.
-
-`prisma7.config.ts` apunta a `prisma/schema.prisma`, usa `prisma/migrations` para migraciones y obtiene `DATABASE_URL` del entorno. El schema también declara `DIRECT_URL`; ambas variables deben configurarse fuera del control de versiones.
-
-Comandos relacionados:
-
-```bash
-npm run db:generate
-npm run db:push
-npm run db:studio
-```
-
-Para cambios de modelo, actualiza primero el schema, revisa el impacto en los módulos y ejecuta la estrategia de migración acordada antes de desplegar.
-
-## Alias de imports
-
-Los alias definidos en `tsconfig.json` evitan rutas relativas largas:
-
-- `@/*` -> `src/*`
-- `@modules/*` -> `src/modules/*`
-- `@shared/*` -> `src/shared/*`
-- `@server/*` -> `src/server/*`
-- `@core/*` -> `src/core/*`
-
-Usa el alias que corresponda a la capa. Evita importar infraestructura de servidor desde componentes que puedan ejecutarse en el navegador.
-
-## Configuración visual
-
-Tailwind CSS 4 se integra mediante `postcss.config.mjs` y `@tailwindcss/postcss`. Prettier usa `prettier-plugin-tailwindcss` para ordenar automáticamente las clases de Tailwind. Los cambios de estilos globales se hacen en `src/app/globals.css`; los componentes reutilizables deben vivir en `src/shared/ui` o en el `ui` del módulo que los posee.
+El despliegue trata frontend, API, migraciones y worker por separado. Actualizar la API no requiere migraciones ni activar Cron. Ver [informe de seguridad](seguridad-apis.md).

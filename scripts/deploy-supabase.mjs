@@ -1,3 +1,4 @@
+import { postgresTlsConfig } from "../supabase/functions/_shared/postgres-tls.mjs";
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
 import { writeFile, unlink, appendFile } from "node:fs/promises";
@@ -91,7 +92,7 @@ const probe = await fetch(expected + "/functions/v1/jobs", {
 });
 if (!probe.ok)
   throw new Error("Edge transaction probe failed; cron not activated");
-const client = new pg.Client({ connectionString: process.env.DIRECT_URL });
+const client = new pg.Client({ ...postgresTlsConfig(process.env.DIRECT_URL) });
 await client.connect();
 try {
   await client.query("CREATE EXTENSION IF NOT EXISTS pg_cron");

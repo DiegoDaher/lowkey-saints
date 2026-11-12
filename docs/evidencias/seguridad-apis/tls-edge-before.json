@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-11-11T21:50:54.761Z",
+  "phase": "before",
+  "checks": [
+    {
+      "name": "API Prisma desde Edge",
+      "status": 200,
+      "response": {
+        "database": true,
+        "postgresTls": {
+          "ssl": false,
+          "version": null,
+          "cipher": null
+        }
+      }
+    },
+    {
+      "name": "jobs Prisma desde Edge, solo probe",
+      "status": 200,
+      "response": {
+        "transaction": [
+          {
+            "ok": 1,
+            "ssl": false,
+            "version": null,
+            "cipher": null
+          }
+        ]
+      }
+    }
+  ],
+  "testAccountDeleted": true,
+  "passed": true
+}

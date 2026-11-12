@@ -29,8 +29,8 @@ export const metadata: Metadata = {
   description:
     "Prendas esenciales y drops independientes. Descubre la colección más reciente de Lowkey Saints.",
   icons: {
-    icon: [{ url: "/lowkey-saints-icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/lowkey-saints-icon.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/lowkey%20Saints%20Imagen.png", type: "image/png" }],
+    apple: [{ url: "/lowkey%20Saints%20Imagen.png", type: "image/png" }],
   },
 };
 
