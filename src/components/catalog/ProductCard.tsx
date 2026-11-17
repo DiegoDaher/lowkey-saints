@@ -96,13 +96,3 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
     </article>
   );
 }
-
-export function ProductCardSkeleton() {
-  return (
-    <div aria-hidden="true" className="animate-pulse">
-      <div className="bg-bone aspect-[4/5]" />
-      <div className="bg-bone mt-4 h-4 w-3/4" />
-      <div className="bg-bone mt-3 h-4 w-1/3" />
-    </div>
-  );
-}

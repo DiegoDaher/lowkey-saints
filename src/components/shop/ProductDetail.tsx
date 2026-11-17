@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import { useState } from "react";
 import Link from "next/link";
 import ProductImage from "@/components/catalog/ProductImage";
@@ -143,7 +144,15 @@ export default function ProductDetail({
                 si antes me di de baja
               </label>
               <StoreAction type="submit" disabled={busy} aria-busy={busy}>
-                {busy ? "Registrando…" : "Recibir aviso"}
+                {busy ? (
+                  <Loader
+                    announce={false}
+                    variant="inline"
+                    label="Registrando…"
+                  />
+                ) : (
+                  "Recibir aviso"
+                )}
               </StoreAction>
             </form>
           ) : (

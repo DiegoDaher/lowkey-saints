@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
@@ -86,6 +87,7 @@ export default function CatalogSection() {
   return (
     <section
       aria-labelledby="catalog-title"
+      aria-busy={loading}
       className="store-catalog w-full scroll-mt-24 py-14 sm:py-20 lg:py-24"
       id="catalogo"
     >
@@ -117,9 +119,7 @@ export default function CatalogSection() {
         sortOrder={sortOrder}
       />
       {loading ? (
-        <p className="py-10" role="status">
-          Cargando productos…
-        </p>
+        <Loader label="Cargando productos…" />
       ) : error ? (
         <p role="alert" className="py-10">
           {error}

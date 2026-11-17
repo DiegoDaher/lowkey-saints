@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import { useState } from "react";
 import { statusLabel } from "@/lib/status-label";
 import Link from "next/link";
@@ -151,7 +152,15 @@ export default function Bag() {
                 aria-busy={busy}
                 className="w-full sm:w-auto"
               >
-                {busy ? "Creando pedido…" : "Crear pedido"}
+                {busy ? (
+                  <Loader
+                    announce={false}
+                    variant="inline"
+                    label="Creando pedido…"
+                  />
+                ) : (
+                  "Crear pedido"
+                )}
               </StoreAction>
             </form>
           )}
