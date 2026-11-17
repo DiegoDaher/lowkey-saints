@@ -1,8 +1,9 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { statusLabel } from "@/lib/status-label";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
@@ -40,6 +41,8 @@ export default function AdminConsole() {
   const [tab, setTab] = useState<string>("productos");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const request = useRef<AbortController | null>(null);
   const [page, setPage] = useState(1);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [subs, setSubs] = useState<Subscription[]>([]);
@@ -60,33 +63,60 @@ export default function AdminConsole() {
     []
   );
   const load = useCallback(async () => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    const options = { signal: controller.signal };
+    setLoading(true);
     try {
-      const me = await call<Role>("/admin/me");
+      const me = await call<Role>("/admin/me", options);
+      if (controller.signal.aborted) return;
       setRole(me);
       setError("");
       if ((tab === "finanzas" || tab === "roles") && me.role !== "ADMIN")
         throw new Error("Esta sección requiere ADMIN");
       if (tab === "productos" || tab === "inventario") {
         const result = await call<{ items: CatalogProduct[] }>(
-          "/admin/products?page=" + page
+          "/admin/products?page=" + page,
+          options
         );
+        const nextCategories = await api<{ id: string; name: string }[]>(
+          "/categories",
+          options
+        );
+        if (controller.signal.aborted) return;
         setProducts(result.items);
-        setCategories(await api("/categories"));
+        setCategories(nextCategories);
       }
-      if (tab === "restock") setSubs(await call("/admin/restock?page=" + page));
-      if (tab === "finanzas")
-        setFinances(await call("/admin/finances?page=" + page));
-      if (tab === "roles") setRoles(await call("/admin/roles"));
+      if (tab === "restock") {
+        const rows = await call<Subscription[]>(
+          "/admin/restock?page=" + page,
+          options
+        );
+        if (!controller.signal.aborted) setSubs(rows);
+      }
+      if (tab === "finanzas") {
+        const rows = await call<Finance[]>(
+          "/admin/finances?page=" + page,
+          options
+        );
+        if (!controller.signal.aborted) setFinances(rows);
+      }
+      if (tab === "roles") {
+        const rows = await call<Role[]>("/admin/roles", options);
+        if (!controller.signal.aborted) setRoles(rows);
+      }
     } catch (e) {
-      setError((e as Error).message);
+      if (!controller.signal.aborted) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [call, tab, page]);
   // This effect fetches external data; its updates occur after network promises settle.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Updates follow the API request.
     void load();
+    return () => request.current?.abort();
   }, [load]);
   async function act(path: string, method: string, value: unknown) {
     setBusy(true);
@@ -127,6 +157,7 @@ export default function AdminConsole() {
               </Link>
             ) : (
               <button
+                disabled={busy}
                 aria-current={tab === s ? "page" : undefined}
                 className={tab === s ? "shop-button" : "border px-4 py-3"}
                 key={s}
@@ -142,344 +173,363 @@ export default function AdminConsole() {
           )}
       </nav>
       <p role="alert">{error}</p>
-      {busy && <p role="status">Procesando…</p>}
-      {tab === "productos" && (
-        <>
-          <button className="shop-button" onClick={() => setEditing(null)}>
-            Nuevo producto
-          </button>
-          {editing !== undefined && (
-            <ProductEditor
-              key={editing?.id || "new"}
-              product={editing}
-              categories={categories}
-              call={call}
-              onClose={() => setEditing(undefined)}
-              onSaved={async () => {
-                setEditing(undefined);
-                await load();
-              }}
-            />
-          )}
+      {busy && <Loader variant="inline" label="Procesando…" />}
+      {loading && <Loader label="Cargando administración…" />}
+      <div hidden={loading} aria-busy={busy} className="space-y-7">
+        {tab === "productos" && (
+          <>
+            <button className="shop-button" onClick={() => setEditing(null)}>
+              Nuevo producto
+            </button>
+            {editing !== undefined && (
+              <ProductEditor
+                key={editing?.id || "new"}
+                product={editing}
+                categories={categories}
+                call={call}
+                onClose={() => setEditing(undefined)}
+                onSaved={async () => {
+                  setEditing(undefined);
+                  await load();
+                }}
+              />
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Precio</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        {p.name}
+                        <p className="text-sm">
+                          {p.categories.map((c) => c.category.name).join(", ")}
+                        </p>
+                      </td>
+                      <td>$ {p.salePrice}</td>
+                      <td>{p.isArchived ? "Archivado" : "Activo"}</td>
+                      <td>
+                        <button
+                          className="underline"
+                          onClick={() => setEditing(p)}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {tab === "inventario" &&
+          products.map((p) => (
+            <section className="space-y-4 border p-4" key={p.id}>
+              <h2 className="text-xl">{p.name}</h2>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = new FormData(e.currentTarget);
+                  await act("/admin/stock", "PATCH", {
+                    changes: p.variants.map((v) => ({
+                      id: v.id,
+                      version: v.version,
+                      stock: Number(form.get(v.id)),
+                    })),
+                  });
+                }}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <th>Talla / color</th>
+                        {[...new Set(p.variants.map((v) => v.color))].map(
+                          (c) => (
+                            <th key={c}>{c}</th>
+                          )
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...new Set(p.variants.map((v) => v.size))].map(
+                        (size) => (
+                          <tr key={size}>
+                            <th>{size}</th>
+                            {[...new Set(p.variants.map((v) => v.color))].map(
+                              (color) => {
+                                const v = p.variants.find(
+                                  (v) => v.size === size && v.color === color
+                                );
+                                return (
+                                  <td key={color}>
+                                    {v ? (
+                                      <>
+                                        <input
+                                          key={v.version}
+                                          aria-label={size + " " + color}
+                                          type="number"
+                                          min="0"
+                                          max="100000"
+                                          name={v.id}
+                                          defaultValue={v.stock}
+                                          required
+                                        />
+                                        <small>
+                                          {v.sku}{" "}
+                                          {v.isArchived ? "(archivada)" : ""}
+                                        </small>
+                                        <button
+                                          type="button"
+                                          className="ml-2 underline"
+                                          disabled={busy || loading}
+                                          onClick={() =>
+                                            act(
+                                              "/admin/variants/" + v.id,
+                                              "PATCH",
+                                              {
+                                                version: v.version,
+                                                isArchived: !v.isArchived,
+                                              }
+                                            )
+                                          }
+                                        >
+                                          {v.isArchived
+                                            ? "Activar"
+                                            : "Archivar"}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+                                );
+                              }
+                            )}
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {p.variants.length > 0 && (
+                  <button
+                    disabled={busy || loading}
+                    className="shop-button mt-3"
+                  >
+                    Guardar existencias
+                  </button>
+                )}
+              </form>
+              <details>
+                <summary>Agregar variante</summary>
+                <form
+                  className="mt-4 grid gap-3 md:grid-cols-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const data = new FormData(form);
+                    if (
+                      await act("/admin/variants", "POST", {
+                        productId: p.id,
+                        size: data.get("size"),
+                        color: data.get("color"),
+                        colorHex: data.get("colorHex"),
+                        sku: data.get("sku"),
+                      })
+                    )
+                      form.reset();
+                  }}
+                >
+                  <label>
+                    Talla
+                    <input name="size" required />
+                  </label>
+                  <label>
+                    Color
+                    <input name="color" required />
+                  </label>
+                  <label>
+                    Color visual
+                    <input
+                      name="colorHex"
+                      type="color"
+                      defaultValue="#222222"
+                    />
+                  </label>
+                  <label>
+                    SKU
+                    <input name="sku" required />
+                  </label>
+                  <button disabled={busy || loading} className="shop-button">
+                    Agregar
+                  </button>
+                </form>
+              </details>
+            </section>
+          ))}
+        {tab === "restock" && (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
-                  <th>Producto</th>
-                  <th>Precio</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
+                  {["Producto", "Variante", "Correo", "Estado", "Envíos"].map(
+                    (s) => (
+                      <th key={s}>{s}</th>
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
-                  <tr key={p.id}>
+                {subs.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.variant.product.name}</td>
                     <td>
-                      {p.name}
-                      <p className="text-sm">
-                        {p.categories.map((c) => c.category.name).join(", ")}
-                      </p>
+                      {s.variant.size} / {s.variant.color}
                     </td>
-                    <td>$ {p.salePrice}</td>
-                    <td>{p.isArchived ? "Archivado" : "Activo"}</td>
+                    <td>{s.email}</td>
+                    <td>{statusLabel(s.status)}</td>
                     <td>
-                      <button
-                        className="underline"
-                        onClick={() => setEditing(p)}
-                      >
-                        Editar
-                      </button>
+                      {s.notifications.map((n, i) => (
+                        <p key={i}>
+                          {statusLabel(n.status)} · {n.attempts} intentos{" "}
+                          {n.lastError}
+                        </p>
+                      ))}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </>
-      )}
-      {tab === "inventario" &&
-        products.map((p) => (
-          <section className="space-y-4 border p-4" key={p.id}>
-            <h2 className="text-xl">{p.name}</h2>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                await act("/admin/stock", "PATCH", {
-                  changes: p.variants.map((v) => ({
-                    id: v.id,
-                    version: v.version,
-                    stock: Number(form.get(v.id)),
-                  })),
-                });
-              }}
-            >
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr>
-                      <th>Talla / color</th>
-                      {[...new Set(p.variants.map((v) => v.color))].map((c) => (
-                        <th key={c}>{c}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...new Set(p.variants.map((v) => v.size))].map((size) => (
-                      <tr key={size}>
-                        <th>{size}</th>
-                        {[...new Set(p.variants.map((v) => v.color))].map(
-                          (color) => {
-                            const v = p.variants.find(
-                              (v) => v.size === size && v.color === color
-                            );
-                            return (
-                              <td key={color}>
-                                {v ? (
-                                  <>
-                                    <input
-                                      key={v.version}
-                                      aria-label={size + " " + color}
-                                      type="number"
-                                      min="0"
-                                      max="100000"
-                                      name={v.id}
-                                      defaultValue={v.stock}
-                                      required
-                                    />
-                                    <small>
-                                      {v.sku}{" "}
-                                      {v.isArchived ? "(archivada)" : ""}
-                                    </small>
-                                    <button
-                                      type="button"
-                                      className="ml-2 underline"
-                                      disabled={busy}
-                                      onClick={() =>
-                                        act(
-                                          "/admin/variants/" + v.id,
-                                          "PATCH",
-                                          {
-                                            version: v.version,
-                                            isArchived: !v.isArchived,
-                                          }
-                                        )
-                                      }
-                                    >
-                                      {v.isArchived ? "Activar" : "Archivar"}
-                                    </button>
-                                  </>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                            );
-                          }
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {p.variants.length > 0 && (
-                <button disabled={busy} className="shop-button mt-3">
-                  Guardar existencias
-                </button>
-              )}
-            </form>
-            <details>
-              <summary>Agregar variante</summary>
+        )}
+        {tab === "finanzas" && (
+          <div className="space-y-4">
+            <p>
+              Utilidad bruta = precio − costo. Los productos sin costo no tienen
+              margen calculado.
+            </p>
+            {finances.map((f) => (
               <form
-                className="mt-4 grid gap-3 md:grid-cols-4"
+                className="grid items-end gap-3 border p-4 md:grid-cols-4"
+                key={f.id}
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  const form = e.currentTarget;
-                  const data = new FormData(form);
-                  if (
-                    await act("/admin/variants", "POST", {
-                      productId: p.id,
-                      size: data.get("size"),
-                      color: data.get("color"),
-                      colorHex: data.get("colorHex"),
-                      sku: data.get("sku"),
-                    })
-                  )
-                    form.reset();
+                  const data = new FormData(e.currentTarget);
+                  await act("/admin/finances", "PUT", {
+                    productId: f.id,
+                    costPrice: data.get("cost"),
+                  });
                 }}
               >
+                <div>
+                  <h2>{f.name}</h2>
+                  <p>Venta $ {f.salePrice}</p>
+                </div>
                 <label>
-                  Talla
-                  <input name="size" required />
+                  Costo MXN
+                  <input
+                    name="cost"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={f.costPrice || ""}
+                    required
+                  />
                 </label>
-                <label>
-                  Color
-                  <input name="color" required />
-                </label>
-                <label>
-                  Color visual
-                  <input name="colorHex" type="color" defaultValue="#222222" />
-                </label>
-                <label>
-                  SKU
-                  <input name="sku" required />
-                </label>
-                <button disabled={busy} className="shop-button">
-                  Agregar
+                <p
+                  className={
+                    f.margin && f.margin.amount < 0 ? "text-red-700" : ""
+                  }
+                >
+                  Utilidad:{" "}
+                  {f.margin
+                    ? "$ " +
+                      f.margin.amount.toFixed(2) +
+                      " / " +
+                      (f.margin.percent === null
+                        ? "Sin porcentaje"
+                        : f.margin.percent.toFixed(2) + "%")
+                    : "Sin costo"}
+                </p>
+                <button disabled={busy || loading} className="shop-button">
+                  Guardar costo
                 </button>
               </form>
-            </details>
-          </section>
-        ))}
-      {tab === "restock" && (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {["Producto", "Variante", "Correo", "Estado", "Envíos"].map(
-                  (s) => (
-                    <th key={s}>{s}</th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {subs.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.variant.product.name}</td>
-                  <td>
-                    {s.variant.size} / {s.variant.color}
-                  </td>
-                  <td>{s.email}</td>
-                  <td>{statusLabel(s.status)}</td>
-                  <td>
-                    {s.notifications.map((n, i) => (
-                      <p key={i}>
-                        {statusLabel(n.status)} · {n.attempts} intentos{" "}
-                        {n.lastError}
-                      </p>
-                    ))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {tab === "finanzas" && (
-        <div className="space-y-4">
-          <p>
-            Utilidad bruta = precio − costo. Los productos sin costo no tienen
-            margen calculado.
-          </p>
-          {finances.map((f) => (
+            ))}
+          </div>
+        )}
+        {tab === "roles" && (
+          <>
+            <p>
+              El usuario debe existir en Supabase Auth. No puedes modificar tu
+              propio rol.
+            </p>
             <form
-              className="grid items-end gap-3 border p-4 md:grid-cols-4"
-              key={f.id}
+              className="grid gap-3 md:grid-cols-4"
               onSubmit={async (e) => {
                 e.preventDefault();
-                const data = new FormData(e.currentTarget);
-                await act("/admin/finances", "PUT", {
-                  productId: f.id,
-                  costPrice: data.get("cost"),
+                const f = new FormData(e.currentTarget);
+                await act("/admin/roles", "PUT", {
+                  id: f.get("id"),
+                  role: f.get("role"),
+                  active: f.get("active") === "on",
                 });
               }}
             >
-              <div>
-                <h2>{f.name}</h2>
-                <p>Venta $ {f.salePrice}</p>
-              </div>
               <label>
-                Costo MXN
-                <input
-                  name="cost"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  defaultValue={f.costPrice || ""}
-                  required
-                />
+                UUID del usuario
+                <input name="id" required />
               </label>
-              <p
-                className={
-                  f.margin && f.margin.amount < 0 ? "text-red-700" : ""
-                }
-              >
-                Utilidad:{" "}
-                {f.margin
-                  ? "$ " +
-                    f.margin.amount.toFixed(2) +
-                    " / " +
-                    (f.margin.percent === null
-                      ? "Sin porcentaje"
-                      : f.margin.percent.toFixed(2) + "%")
-                  : "Sin costo"}
-              </p>
-              <button disabled={busy} className="shop-button">
-                Guardar costo
+              <label>
+                Rol
+                <select name="role">
+                  <option>STAFF</option>
+                  <option>ADMIN</option>
+                </select>
+              </label>
+              <label>
+                <input name="active" type="checkbox" defaultChecked /> Activo
+              </label>
+              <button disabled={busy || loading} className="shop-button">
+                Guardar permisos
               </button>
             </form>
-          ))}
-        </div>
-      )}
-      {tab === "roles" && (
-        <>
-          <p>
-            El usuario debe existir en Supabase Auth. No puedes modificar tu
-            propio rol.
-          </p>
-          <form
-            className="grid gap-3 md:grid-cols-4"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              await act("/admin/roles", "PUT", {
-                id: f.get("id"),
-                role: f.get("role"),
-                active: f.get("active") === "on",
-              });
-            }}
-          >
-            <label>
-              UUID del usuario
-              <input name="id" required />
-            </label>
-            <label>
-              Rol
-              <select name="role">
-                <option>STAFF</option>
-                <option>ADMIN</option>
-              </select>
-            </label>
-            <label>
-              <input name="active" type="checkbox" defaultChecked /> Activo
-            </label>
-            <button disabled={busy} className="shop-button">
-              Guardar permisos
+            <ul>
+              {roles.map((r) => (
+                <li className="border-b py-3" key={r.id}>
+                  {r.id} · {r.role} · {r.active ? "Activo" : "Desactivado"}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {tab !== "roles" && (
+          <div className="flex gap-5">
+            <button
+              disabled={page === 1 || busy || loading}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Anterior
             </button>
-          </form>
-          <ul>
-            {roles.map((r) => (
-              <li className="border-b py-3" key={r.id}>
-                {r.id} · {r.role} · {r.active ? "Activo" : "Desactivado"}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {tab !== "roles" && (
-        <div className="flex gap-5">
-          <button
-            disabled={page === 1 || busy}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Anterior
-          </button>
-          <span>Página {page}</span>
-          <button disabled={busy} onClick={() => setPage((p) => p + 1)}>
-            Siguiente
-          </button>
-        </div>
-      )}
+            <span>Página {page}</span>
+            <button
+              disabled={busy || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

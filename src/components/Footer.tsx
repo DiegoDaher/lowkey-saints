@@ -10,7 +10,7 @@ const helpLinks = [
 
 export default function Footer() {
   return (
-    <footer className="border-line bg-paper border-t">
+    <footer className="store-footer border-line bg-paper border-t">
       <div className="mx-auto grid max-w-[1440px] gap-10 px-6 py-12 sm:grid-cols-2 sm:px-8 sm:py-16 lg:grid-cols-3 lg:px-12">
         <div className="flex flex-col items-start gap-5">
           <Logo />
@@ -27,7 +27,7 @@ export default function Footer() {
             {helpLinks.map((link) => (
               <li key={link.label}>
                 <Link
-                  className="text-muted hover:text-ink text-sm transition-colors"
+                  className="store-link text-muted inline-flex min-h-11 items-center text-sm"
                   href={link.href}
                 >
                   {link.label}
@@ -43,7 +43,7 @@ export default function Footer() {
           </h2>
           <a
             aria-label="Lowkey Saints en Instagram"
-            className="hover:text-muted inline-flex items-center gap-2 text-sm font-medium transition-colors"
+            className="store-link inline-flex min-h-11 items-center gap-2 text-sm font-medium"
             href="https://www.instagram.com/lowkey_saints/"
             rel="noreferrer"
             target="_blank"

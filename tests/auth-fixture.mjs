@@ -41,6 +41,34 @@ createServer((req, res) => {
     req.headers.authorization === `Bearer ${token}`
   ) {
     res.end(JSON.stringify(user));
+  } else if (req.url === "/functions/v1/api/v1/products/hoodie-prueba") {
+    res.end(
+      JSON.stringify({
+        id: "hoodie",
+        name: "Hoodie de prueba",
+        slug: "hoodie-prueba",
+        description: "Prenda de prueba",
+        salePrice: "1999",
+        images: [
+          {
+            id: "image",
+            url: "/images/editorial/alo-coffee.webp",
+            alt: "Hoodie café",
+          },
+        ],
+        categories: [{ category: { name: "Tops" } }],
+        measurements: [],
+        variants: [
+          {
+            id: "variant",
+            size: "M",
+            color: "Café",
+            colorHex: "#70513e",
+            stock: 3,
+          },
+        ],
+      })
+    );
   } else if (req.url === "/health") {
     res.end("{}");
   } else {

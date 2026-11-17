@@ -1,10 +1,12 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import { useState } from "react";
 import { statusLabel } from "@/lib/status-label";
 import Link from "next/link";
 import { useCart } from "@/components/shop/CartProvider";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
+import StoreAction from "@/components/ui/StoreAction";
 import type { OrderReceipt } from "../../../supabase/functions/_shared/contracts";
 export default function Bag() {
   const { items, quantity, clear } = useCart();
@@ -15,7 +17,7 @@ export default function Bag() {
     <main className="mx-auto w-full max-w-3xl space-y-6 px-6 py-12">
       <h1 className="font-display text-4xl">Tu bolsa</h1>
       {receipt ? (
-        <section className="space-y-4">
+        <section className="store-panel store-receipt space-y-4 p-5 sm:p-8">
           <h2>
             Pedido #{receipt.orderNumber} · {statusLabel(receipt.status)}
           </h2>
@@ -23,21 +25,20 @@ export default function Bag() {
           <p>
             Reserva hasta {new Date(receipt.expiresAt).toLocaleString("es-MX")}
           </p>
-          <a
-            className="shop-button inline-block"
+          <StoreAction
             href={receipt.whatsappUrl}
             target="_blank"
             rel="noreferrer"
           >
             Continuar en WhatsApp
-          </a>
+          </StoreAction>
         </section>
       ) : (
         <>
           {items.length ? (
             items.map((i) => (
               <div
-                className="flex items-center justify-between gap-3 border-b py-4"
+                className="border-line flex flex-wrap items-center justify-between gap-3 border-b py-4"
                 key={i.variantId}
               >
                 <div>
@@ -49,7 +50,7 @@ export default function Bag() {
                 <label>
                   Cantidad
                   <input
-                    className="ml-3 w-16 border p-2"
+                    className="store-field ml-3 w-16 border p-2"
                     type="number"
                     min="0"
                     max="20"
@@ -67,7 +68,7 @@ export default function Bag() {
           )}
           {items.length > 0 && (
             <form
-              className="space-y-4"
+              className="store-panel space-y-4 p-5 sm:p-8"
               onSubmit={async (e) => {
                 e.preventDefault();
                 const data = new FormData(e.currentTarget);
@@ -123,7 +124,7 @@ export default function Bag() {
                 Nombre
                 <input
                   disabled={busy}
-                  className="block w-full border p-3"
+                  className="store-field mt-2 block w-full border p-3"
                   name="name"
                   required
                   maxLength={100}
@@ -133,7 +134,7 @@ export default function Bag() {
                 Teléfono
                 <input
                   disabled={busy}
-                  className="block w-full border p-3"
+                  className="store-field mt-2 block w-full border p-3"
                   name="phone"
                   type="tel"
                   required
@@ -145,15 +146,31 @@ export default function Bag() {
                 Reservaremos tus piezas durante 24 horas. El pago y la entrega
                 se coordinan por WhatsApp.
               </p>
-              <button disabled={busy} className="shop-button">
-                {busy ? "Creando pedido…" : "Crear pedido"}
-              </button>
+              <StoreAction
+                type="submit"
+                disabled={busy}
+                aria-busy={busy}
+                className="w-full sm:w-auto"
+              >
+                {busy ? (
+                  <Loader
+                    announce={false}
+                    variant="inline"
+                    label="Creando pedido…"
+                  />
+                ) : (
+                  "Crear pedido"
+                )}
+              </StoreAction>
             </form>
           )}
         </>
       )}
       <p role="alert">{error}</p>
-      <Link href="/#catalogo" className="underline">
+      <Link
+        href="/#catalogo"
+        className="store-link inline-flex min-h-11 items-center"
+      >
         Seguir comprando
       </Link>
     </main>

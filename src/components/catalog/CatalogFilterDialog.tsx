@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import StoreAction from "@/components/ui/StoreAction";
 import type {
   CatalogFilters,
   ProductCategory,
@@ -109,7 +110,7 @@ export default function CatalogFilterDialog({
         </h2>
         <button
           aria-label="Cerrar filtros"
-          className="flex size-11 items-center justify-center"
+          className="store-icon flex size-11 items-center justify-center"
           onClick={onClose}
           type="button"
         >
@@ -126,7 +127,7 @@ export default function CatalogFilterDialog({
             Categoría
           </label>
           <select
-            className="border-line bg-paper min-h-11 w-full border px-3 text-sm"
+            className="store-field border-line bg-paper min-h-11 w-full border px-3 text-sm"
             id="filter-category"
             onChange={(event) => {
               const category = categories.find(
@@ -154,7 +155,7 @@ export default function CatalogFilterDialog({
             <label className="text-muted text-xs">
               Desde
               <input
-                className="border-line text-ink mt-2 min-h-11 w-full border px-3 text-sm"
+                className="store-field border-line text-ink mt-2 min-h-11 w-full border px-3 text-sm"
                 inputMode="numeric"
                 min="0"
                 onChange={(event) => {
@@ -172,7 +173,7 @@ export default function CatalogFilterDialog({
             <label className="text-muted text-xs">
               Hasta
               <input
-                className="border-line text-ink mt-2 min-h-11 w-full border px-3 text-sm"
+                className="store-field border-line text-ink mt-2 min-h-11 w-full border px-3 text-sm"
                 inputMode="numeric"
                 min="0"
                 onChange={(event) => {
@@ -203,7 +204,7 @@ export default function CatalogFilterDialog({
             <div className="flex flex-wrap gap-2">
               {availableSizes.map((size) => (
                 <label
-                  className={`flex min-h-10 min-w-11 cursor-pointer items-center justify-center border px-3 text-xs ${
+                  className={`store-choice flex min-h-11 min-w-11 cursor-pointer items-center justify-center border px-3 text-xs ${
                     draftFilters.sizes.includes(size)
                       ? "border-ink bg-ink text-paper"
                       : "border-line"
@@ -237,12 +238,12 @@ export default function CatalogFilterDialog({
             <div className="grid grid-cols-2 gap-3">
               {availableColors.map((color) => (
                 <label
-                  className="flex min-h-10 cursor-pointer items-center gap-2 text-sm"
+                  className="store-choice flex min-h-11 cursor-pointer items-center gap-2 text-sm"
                   key={color.name}
                 >
                   <input
                     checked={draftFilters.colors.includes(color.name)}
-                    className="accent-ink size-4"
+                    className="accent-gold-dark size-4"
                     onChange={() =>
                       setDraftFilters({
                         ...draftFilters,
@@ -266,8 +267,9 @@ export default function CatalogFilterDialog({
       </div>
 
       <div className="border-line bg-paper sticky bottom-0 flex gap-3 border-t px-5 py-4 sm:px-7">
-        <button
-          className="border-line hover:border-ink min-h-12 flex-1 border px-4 text-xs font-bold tracking-[0.1em] transition-colors"
+        <StoreAction
+          variant="secondary"
+          className="flex-1 px-3"
           onClick={() => {
             setDraftFilters({
               category: "Todas",
@@ -281,14 +283,14 @@ export default function CatalogFilterDialog({
           type="button"
         >
           LIMPIAR
-        </button>
-        <button
-          className="bg-ink text-paper hover:bg-muted min-h-12 flex-1 px-4 text-xs font-bold tracking-[0.1em] transition-colors"
+        </StoreAction>
+        <StoreAction
+          className="flex-1 px-3"
           onClick={applyFilters}
           type="button"
         >
           APLICAR FILTROS
-        </button>
+        </StoreAction>
       </div>
     </dialog>
   );

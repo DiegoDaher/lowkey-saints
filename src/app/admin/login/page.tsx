@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -46,8 +47,12 @@ export default function Login() {
             required
           />
         </label>
-        <button disabled={busy} className="shop-button">
-          {busy ? "Ingresando…" : "Entrar"}
+        <button disabled={busy} aria-busy={busy} className="shop-button">
+          {busy ? (
+            <Loader announce={false} variant="inline" label="Ingresando…" />
+          ) : (
+            "Entrar"
+          )}
         </button>
       </form>
       <p role="alert">{error}</p>

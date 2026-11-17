@@ -1,4 +1,5 @@
 import { SlidersHorizontal } from "lucide-react";
+import StoreAction from "@/components/ui/StoreAction";
 
 interface CatalogToolbarProps {
   activeFilterCount: number;
@@ -16,17 +17,17 @@ export default function CatalogToolbar({
   sortOrder,
 }: CatalogToolbarProps) {
   return (
-    <div className="border-line flex flex-wrap items-center justify-between gap-4 border-y py-4">
+    <div className="store-toolbar border-line flex flex-wrap items-center justify-between gap-4 border-y py-4">
       <p aria-live="polite" className="text-muted text-xs sm:text-sm">
         {productCount} {productCount === 1 ? "producto" : "productos"}
       </p>
 
-      <div className="flex items-center gap-3 sm:gap-6">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-6">
         <label className="text-muted flex items-center gap-2 text-xs sm:text-sm">
           <span className="hidden sm:inline">Ordenar por</span>
           <select
             aria-label="Ordenar productos"
-            className="bg-paper text-ink min-h-10 font-medium focus-visible:outline-offset-2"
+            className="store-field bg-paper text-ink max-w-[10rem] text-xs font-medium focus-visible:outline-offset-2 sm:max-w-none sm:text-sm"
             onChange={(event) => onSortChange(event.target.value)}
             value={sortOrder}
           >
@@ -36,13 +37,14 @@ export default function CatalogToolbar({
             <option value="precio-desc">Precio: mayor a menor</option>
           </select>
         </label>
-        <button
+        <StoreAction
           aria-label={
             activeFilterCount > 0
               ? `Filtrar productos, ${activeFilterCount} filtros activos`
               : "Filtrar productos"
           }
-          className="border-line hover:border-ink min-h-10 border px-4 text-xs font-bold tracking-[0.1em] transition-colors sm:text-sm"
+          variant="secondary"
+          className="px-3 sm:px-4"
           id="catalog-filter-trigger"
           onClick={onFilter}
           type="button"
@@ -51,12 +53,12 @@ export default function CatalogToolbar({
             <SlidersHorizontal aria-hidden="true" size={15} />
             FILTRAR
             {activeFilterCount > 0 && (
-              <span aria-hidden="true" className="text-gold">
+              <span aria-hidden="true" className="font-bold">
                 {activeFilterCount}
               </span>
             )}
           </span>
-        </button>
+        </StoreAction>
       </div>
     </div>
   );

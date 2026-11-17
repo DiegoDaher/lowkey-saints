@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
@@ -12,6 +13,7 @@ import {
 } from "@/components/catalog/CatalogFilterProvider";
 import CatalogToolbar from "@/components/catalog/CatalogToolbar";
 import ProductGrid from "@/components/catalog/ProductGrid";
+import StoreAction from "@/components/ui/StoreAction";
 
 export default function CatalogSection() {
   const { filters, setFilters } = useCatalogFilters();
@@ -85,7 +87,8 @@ export default function CatalogSection() {
   return (
     <section
       aria-labelledby="catalog-title"
-      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-4 py-14 sm:px-8 sm:py-20 lg:px-12 lg:py-24"
+      aria-busy={loading}
+      className="store-catalog w-full scroll-mt-24 py-14 sm:py-20 lg:py-24"
       id="catalogo"
     >
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4 sm:mb-9">
@@ -116,9 +119,7 @@ export default function CatalogSection() {
         sortOrder={sortOrder}
       />
       {loading ? (
-        <p className="py-10" role="status">
-          Cargando productos…
-        </p>
+        <Loader label="Cargando productos…" />
       ) : error ? (
         <p role="alert" className="py-10">
           {error}
@@ -126,22 +127,24 @@ export default function CatalogSection() {
       ) : (
         <ProductGrid products={products} />
       )}
-      <div className="mt-8 flex items-center justify-center gap-5">
-        <button
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-5">
+        <StoreAction
+          variant="secondary"
           disabled={page <= 1 || loading}
           onClick={() => setPage((p) => p - 1)}
         >
           Anterior
-        </button>
+        </StoreAction>
         <span>
           {page} / {Math.max(1, pages)}
         </span>
-        <button
+        <StoreAction
+          variant="secondary"
           disabled={page >= pages || loading}
           onClick={() => setPage((p) => p + 1)}
         >
           Siguiente
-        </button>
+        </StoreAction>
       </div>
       {filterDialogOpen && (
         <CatalogFilterDialog

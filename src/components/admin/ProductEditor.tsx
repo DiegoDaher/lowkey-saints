@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import type {
@@ -29,29 +30,57 @@ export default function ProductEditor({
   const [options, setOptions] = useState<CatalogProduct[]>([]);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(true);
+  const [complementsLoading, setComplementsLoading] = useState(Boolean(p));
   const [error, setError] = useState("");
   useEffect(() => {
-    call<{ items: CatalogProduct[] }>(
-      "/admin/products?q=" + encodeURIComponent(search)
-    )
-      .then((r) => setOptions(r.items))
-      .catch((e) => setError(e.message));
+    const controller = new AbortController();
+    async function loadOptions() {
+      setSearchLoading(true);
+      try {
+        const result = await call<{ items: CatalogProduct[] }>(
+          "/admin/products?q=" + encodeURIComponent(search),
+          { signal: controller.signal }
+        );
+        if (!controller.signal.aborted) setOptions(result.items);
+      } catch (e) {
+        if (!controller.signal.aborted) setError((e as Error).message);
+      } finally {
+        if (!controller.signal.aborted) setSearchLoading(false);
+      }
+    }
+    void Promise.resolve().then(() => {
+      if (!controller.signal.aborted) void loadOptions();
+    });
+    return () => controller.abort();
   }, [call, search]);
   useEffect(() => {
-    if (p)
-      call<CatalogProduct>("/admin/products/" + p.id)
-        .then((v) =>
-          setComplements(v.complements?.map((c) => c.complementary.id) || [])
-        )
-        .catch((e) => setError(e.message));
+    if (!p) return;
+    const controller = new AbortController();
+    void call<CatalogProduct>("/admin/products/" + p.id, {
+      signal: controller.signal,
+    })
+      .then((v) => {
+        if (!controller.signal.aborted)
+          setComplements(v.complements?.map((c) => c.complementary.id) || []);
+      })
+      .catch((e: Error) => {
+        if (!controller.signal.aborted) setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setComplementsLoading(false);
+      });
+    return () => controller.abort();
   }, [call, p]);
   async function upload(files: FileList | null) {
-    if (!files) return;
+    if (!files || busy) return;
     if (images.length + files.length > 12) {
       setError("Máximo 12 fotografías");
       return;
     }
     setBusy(true);
+    setUploading(true);
     setError("");
     try {
       for (const file of Array.from(files)) {
@@ -90,6 +119,7 @@ export default function ProductEditor({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setUploading(false);
     }
   }
   return (
@@ -225,6 +255,7 @@ export default function ProductEditor({
               onChange={(e) => void upload(e.target.files)}
             />
           </label>
+          {uploading && <Loader variant="inline" label="Subiendo imágenes…" />}
           <p>Máximo 12. La primera imagen será la portada.</p>
           <div className="flex flex-wrap gap-4">
             {images.map((im, i) => (
@@ -345,6 +376,9 @@ export default function ProductEditor({
             Buscar productos
             <input value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
+          {(searchLoading || complementsLoading) && (
+            <Loader variant="inline" label="Cargando complementos…" />
+          )}
           <p>{complements.length} seleccionados</p>
           {options
             .filter((o) => o.id !== p?.id)
@@ -354,7 +388,10 @@ export default function ProductEditor({
                   type="checkbox"
                   checked={complements.includes(o.id)}
                   disabled={
-                    !complements.includes(o.id) && complements.length >= 3
+                    busy ||
+                    searchLoading ||
+                    complementsLoading ||
+                    (!complements.includes(o.id) && complements.length >= 3)
                   }
                   onChange={(e) =>
                     setComplements((old) =>
@@ -368,8 +405,16 @@ export default function ProductEditor({
               </label>
             ))}
         </fieldset>
-        <button disabled={busy} className="shop-button">
-          {busy ? "Guardando…" : "Guardar producto"}
+        <button
+          disabled={busy || complementsLoading}
+          aria-busy={busy}
+          className="shop-button"
+        >
+          {busy && !uploading ? (
+            <Loader announce={false} variant="inline" label="Guardando…" />
+          ) : (
+            "Guardar producto"
+          )}
         </button>
       </form>
     </section>

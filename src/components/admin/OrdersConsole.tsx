@@ -1,4 +1,5 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -59,7 +60,9 @@ function History({ orderId, revision }: { orderId: string; revision: number }) {
   return (
     <div className="space-y-2 pt-3">
       {error && <p role="alert">{error}</p>}
-      {!entries && !error && <p role="status">Cargando historial…</p>}
+      {!entries && !error && (
+        <Loader variant="inline" label="Cargando historial…" />
+      )}
       {entries && !entries.some((entry) => entry.source === "CHECKOUT") && (
         <p>
           Historial previo no disponible. Este pedido puede tener un historial
@@ -213,9 +216,14 @@ export default function OrdersConsole() {
         </button>
       </div>
       {error && <p role="alert">{error}</p>}
-      <p role="status" aria-live="polite">
-        {loading ? "Actualizando pedidos…" : notice}
-      </p>
+      {loading ? (
+        <Loader
+          variant={orders.length ? "inline" : "section"}
+          label="Actualizando pedidos…"
+        />
+      ) : (
+        <p role="status">{notice}</p>
+      )}
       {!loading && !error && orders.length === 0 && (
         <p>No hay pedidos en esta página.</p>
       )}
@@ -268,7 +276,9 @@ export default function OrdersConsole() {
                       {actions[action]}
                     </button>
                   ))}
-                {busy[order.id] && <span role="status">Guardando…</span>}
+                {busy[order.id] && (
+                  <Loader variant="inline" label="Guardando…" />
+                )}
               </div>
               <details
                 onToggle={(e) => {

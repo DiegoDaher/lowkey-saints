@@ -1,0 +1,420 @@
+{
+  "batch": "2026-11-16-sudaderas",
+  "status": "authorized",
+  "provenance": {
+    "prices": "Usuario: hoodies 1999 MXN; su?teres 1799 MXN. Quarter zip clasificado como su?ter.",
+    "sizesAndStock": "Simulados con autorizaci?n: CH, M, G; una unidad por talla y color.",
+    "colors": "Nombres basados en archivos y revisi?n visual; HEX aproximados.",
+    "materials": "Pendientes de etiqueta; no se inventa composici?n.",
+    "crewNeck": "Gris confirmado por usuario como otro color del mismo modelo."
+  },
+  "products": [
+    {
+      "slug": "alo-hoodie",
+      "name": "Hoodie Alo",
+      "salePrice": "1999.00",
+      "category": "tops",
+      "description": "Sudadera con capucha, cordones y bolsillo canguro. Logotipo Alo en el pecho.",
+      "specifications": "Frente; manga larga; pu?os y bajo acanalados.",
+      "materials": "",
+      "images": [
+        {
+          "source": "Alo hoodie azul.png",
+          "file": "alo-hoodie-1.webp",
+          "alt": "Hoodie Alo color Azul marino, vista frontal",
+          "color": "Azul marino"
+        },
+        {
+          "source": "Alo hoodie negra.png",
+          "file": "alo-hoodie-2.webp",
+          "alt": "Hoodie Alo color Negro, vista frontal",
+          "color": "Negro"
+        },
+        {
+          "source": "Alo hoodie gris.png",
+          "file": "alo-hoodie-3.webp",
+          "alt": "Hoodie Alo color Gris jaspeado, vista frontal",
+          "color": "Gris jaspeado"
+        },
+        {
+          "source": "Alo hoodie cafe.png",
+          "file": "alo-hoodie-4.webp",
+          "alt": "Hoodie Alo color Caf?, vista frontal",
+          "color": "Caf?"
+        }
+      ],
+      "variants": [
+        {
+          "size": "CH",
+          "color": "Azul marino",
+          "colorHex": "#222940",
+          "sku": "LS-AH-1-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Azul marino",
+          "colorHex": "#222940",
+          "sku": "LS-AH-1-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Azul marino",
+          "colorHex": "#222940",
+          "sku": "LS-AH-1-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Negro",
+          "colorHex": "#202024",
+          "sku": "LS-AH-2-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Negro",
+          "colorHex": "#202024",
+          "sku": "LS-AH-2-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Negro",
+          "colorHex": "#202024",
+          "sku": "LS-AH-2-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Gris jaspeado",
+          "colorHex": "#bdbdbb",
+          "sku": "LS-AH-3-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Gris jaspeado",
+          "colorHex": "#bdbdbb",
+          "sku": "LS-AH-3-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Gris jaspeado",
+          "colorHex": "#bdbdbb",
+          "sku": "LS-AH-3-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Caf?",
+          "colorHex": "#564137",
+          "sku": "LS-AH-4-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Caf?",
+          "colorHex": "#564137",
+          "sku": "LS-AH-4-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Caf?",
+          "colorHex": "#564137",
+          "sku": "LS-AH-4-G",
+          "stock": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "slug": "alo-crew-neck",
+      "name": "Su?ter Alo Crew Neck",
+      "salePrice": "1799.00",
+      "category": "tops",
+      "description": "Prenda de manga larga y cuello redondo con logotipo Alo en el pecho.",
+      "specifications": "Frente; cuello, pu?os y bajo acanalados.",
+      "materials": "",
+      "images": [
+        {
+          "source": "Alo sueter crew neck azul.png",
+          "file": "alo-crew-neck-1.webp",
+          "alt": "Su?ter Alo Crew Neck color Azul marino, vista frontal",
+          "color": "Azul marino"
+        },
+        {
+          "source": "Alo sueter crew neck negro.png",
+          "file": "alo-crew-neck-2.webp",
+          "alt": "Su?ter Alo Crew Neck color Negro, vista frontal",
+          "color": "Negro"
+        },
+        {
+          "source": "Alo sueter crew neck cafe.png",
+          "file": "alo-crew-neck-3.webp",
+          "alt": "Su?ter Alo Crew Neck color Caf?, vista frontal",
+          "color": "Caf?"
+        },
+        {
+          "source": "Alo sueter crew neck loose fit.png",
+          "file": "alo-crew-neck-4.webp",
+          "alt": "Su?ter Alo Crew Neck color Gris jaspeado, vista frontal",
+          "color": "Gris jaspeado"
+        }
+      ],
+      "variants": [
+        {
+          "size": "CH",
+          "color": "Azul marino",
+          "colorHex": "#191e30",
+          "sku": "LS-AC-1-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Azul marino",
+          "colorHex": "#191e30",
+          "sku": "LS-AC-1-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Azul marino",
+          "colorHex": "#191e30",
+          "sku": "LS-AC-1-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Negro",
+          "colorHex": "#17171b",
+          "sku": "LS-AC-2-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Negro",
+          "colorHex": "#17171b",
+          "sku": "LS-AC-2-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Negro",
+          "colorHex": "#17171b",
+          "sku": "LS-AC-2-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Caf?",
+          "colorHex": "#3e3731",
+          "sku": "LS-AC-3-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Caf?",
+          "colorHex": "#3e3731",
+          "sku": "LS-AC-3-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Caf?",
+          "colorHex": "#3e3731",
+          "sku": "LS-AC-3-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Gris jaspeado",
+          "colorHex": "#999a98",
+          "sku": "LS-AC-4-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Gris jaspeado",
+          "colorHex": "#999a98",
+          "sku": "LS-AC-4-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Gris jaspeado",
+          "colorHex": "#999a98",
+          "sku": "LS-AC-4-G",
+          "stock": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "slug": "alo-quarter-zip",
+      "name": "Su?ter Alo Quarter Zip",
+      "salePrice": "1799.00",
+      "category": "tops",
+      "description": "Prenda de manga larga con cuello alto, cierre parcial y logotipo Alo en el pecho.",
+      "specifications": "Frente; cierre met?lico parcial; pu?os y bajo acanalados.",
+      "materials": "",
+      "images": [
+        {
+          "source": "alo azul quarter-zip.png",
+          "file": "alo-quarter-zip-1.webp",
+          "alt": "Su?ter Alo Quarter Zip color Azul marino, vista frontal",
+          "color": "Azul marino"
+        },
+        {
+          "source": "alo negra quarter-zip.png",
+          "file": "alo-quarter-zip-2.webp",
+          "alt": "Su?ter Alo Quarter Zip color Negro, vista frontal",
+          "color": "Negro"
+        }
+      ],
+      "variants": [
+        {
+          "size": "CH",
+          "color": "Azul marino",
+          "colorHex": "#202938",
+          "sku": "LS-AQ-1-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Azul marino",
+          "colorHex": "#202938",
+          "sku": "LS-AQ-1-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Azul marino",
+          "colorHex": "#202938",
+          "sku": "LS-AQ-1-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Negro",
+          "colorHex": "#151613",
+          "sku": "LS-AQ-2-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Negro",
+          "colorHex": "#151613",
+          "sku": "LS-AQ-2-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Negro",
+          "colorHex": "#151613",
+          "sku": "LS-AQ-2-G",
+          "stock": 1
+        }
+      ],
+      "measurements": []
+    },
+    {
+      "slug": "essentials-hoodie",
+      "name": "Hoodie Essentials Fear of God",
+      "salePrice": "1999.00",
+      "category": "tops",
+      "description": "Sudadera con capucha y gr?fico Essentials Fear of God en la espalda.",
+      "specifications": "Vista posterior; manga larga; bajo acanalado. Foto frontal pendiente.",
+      "materials": "",
+      "images": [
+        {
+          "source": "Essentials hoddie azul.png",
+          "file": "essentials-hoodie-1.webp",
+          "alt": "Hoodie Essentials Fear of God color Azul oscuro, vista posterior",
+          "color": "Azul oscuro"
+        },
+        {
+          "source": "Essentials hoddie gris.png",
+          "file": "essentials-hoodie-2.webp",
+          "alt": "Hoodie Essentials Fear of God color Gris jaspeado, vista posterior",
+          "color": "Gris jaspeado"
+        },
+        {
+          "source": "Essentials hoddie hueso.png",
+          "file": "essentials-hoodie-3.webp",
+          "alt": "Hoodie Essentials Fear of God color Hueso, vista posterior",
+          "color": "Hueso"
+        }
+      ],
+      "variants": [
+        {
+          "size": "CH",
+          "color": "Azul oscuro",
+          "colorHex": "#243c49",
+          "sku": "LS-EH-1-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Azul oscuro",
+          "colorHex": "#243c49",
+          "sku": "LS-EH-1-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Azul oscuro",
+          "colorHex": "#243c49",
+          "sku": "LS-EH-1-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Gris jaspeado",
+          "colorHex": "#9da9a7",
+          "sku": "LS-EH-2-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Gris jaspeado",
+          "colorHex": "#9da9a7",
+          "sku": "LS-EH-2-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Gris jaspeado",
+          "colorHex": "#9da9a7",
+          "sku": "LS-EH-2-G",
+          "stock": 1
+        },
+        {
+          "size": "CH",
+          "color": "Hueso",
+          "colorHex": "#d7d9ce",
+          "sku": "LS-EH-3-CH",
+          "stock": 1
+        },
+        {
+          "size": "M",
+          "color": "Hueso",
+          "colorHex": "#d7d9ce",
+          "sku": "LS-EH-3-M",
+          "stock": 1
+        },
+        {
+          "size": "G",
+          "color": "Hueso",
+          "colorHex": "#d7d9ce",
+          "sku": "LS-EH-3-G",
+          "stock": 1
+        }
+      ],
+      "measurements": []
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+﻿import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
   testMatch: "*.browser.spec.ts",
@@ -22,6 +22,7 @@ export default defineConfig({
       timeout: 120000,
       reuseExistingServer: false,
       env: {
+        NEXT_TEST_DIST_DIR: "build/browser-tests",
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:55440",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "browser-test-only",
       },
