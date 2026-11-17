@@ -43,7 +43,26 @@ body {
 
 .product-card__alternate {
   opacity: 0;
-  transition: opacity 250ms ease;
+  visibility: hidden;
+}
+
+.product-card:focus-within:has(.product-card__alternate)
+  .product-card__primary {
+  visibility: hidden;
+}
+.product-card:focus-within .product-card__alternate {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover:has(.product-card__alternate) .product-card__primary {
+    visibility: hidden;
+  }
+  .product-card:hover .product-card__alternate {
+    opacity: 1;
+    visibility: visible;
+  }
 }
 
 .quick-view-dialog::backdrop {
@@ -51,11 +70,6 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .product-card:hover .product-card__alternate,
-  .product-card:focus-within .product-card__alternate {
-    opacity: 1;
-  }
-
   .quick-view-trigger {
     opacity: 0;
     transform: translateY(0.25rem);

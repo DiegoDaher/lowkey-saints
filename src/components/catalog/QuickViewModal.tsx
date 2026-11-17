@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import Image from "next/image";
+import ProductImage from "@/components/catalog/ProductImage";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format-price";
 import type { Product } from "@/types/product";
@@ -74,13 +74,12 @@ export default function QuickViewModal({
       </div>
 
       <div className="grid md:min-h-[34rem] md:grid-cols-2">
-        <div className="bg-bone p-4 pt-14 sm:p-6 sm:pt-14 md:p-8">
-          <div className="bg-paper relative aspect-[4/5] overflow-hidden">
-            <Image
+        <div className="p-4 pt-14 sm:p-6 sm:pt-14 md:p-8">
+          <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+            <ProductImage
               unoptimized
               alt={product.name}
-              className="object-cover"
-              fill
+              className="object-contain"
               sizes="(max-width: 767px) 100vw, 46vw"
               src={selectedImage}
             />
@@ -94,7 +93,7 @@ export default function QuickViewModal({
                 <button
                   aria-label={`Ver imagen ${index + 1} de ${product.name}`}
                   aria-pressed={selectedImage === image}
-                  className={`store-choice relative size-16 shrink-0 overflow-hidden border ${
+                  className={`store-choice relative h-20 w-16 shrink-0 overflow-hidden border ${
                     selectedImage === image
                       ? "border-ink"
                       : "border-transparent"
@@ -103,11 +102,10 @@ export default function QuickViewModal({
                   onClick={() => setSelectedImage(image)}
                   type="button"
                 >
-                  <Image
+                  <ProductImage
                     unoptimized
                     alt=""
-                    className="object-cover"
-                    fill
+                    className="object-contain"
                     sizes="64px"
                     src={image}
                   />

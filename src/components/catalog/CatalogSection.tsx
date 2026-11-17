@@ -86,7 +86,7 @@ export default function CatalogSection() {
   return (
     <section
       aria-labelledby="catalog-title"
-      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-4 py-14 sm:px-8 sm:py-20 lg:px-12 lg:py-24"
+      className="store-catalog w-full scroll-mt-24 py-14 sm:py-20 lg:py-24"
       id="catalogo"
     >
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4 sm:mb-9">

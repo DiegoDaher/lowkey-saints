@@ -1,9 +1,8 @@
-import Image from "next/image";
+import ProductImage from "@/components/catalog/ProductImage";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import { formatPrice } from "@/lib/format-price";
 import type { Product } from "@/types/product";
-
 interface ProductCardProps {
   onQuickView: (product: Product, trigger: HTMLButtonElement) => void;
   product: Product;
@@ -18,26 +17,24 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
 
   return (
     <article className="product-card store-product-card min-w-0">
-      <div className="store-card-media group bg-bone relative aspect-[4/5] overflow-hidden">
+      <div className="store-card-media group relative aspect-[4/5] overflow-hidden">
         <Link
           aria-label={`Ver ${product.name}`}
           className="store-image-link absolute inset-0"
           href={`/productos/${product.slug}`}
         >
-          <Image
+          <ProductImage
             unoptimized
             alt={product.name}
-            className="store-product-image object-cover"
-            fill
+            className="product-card__primary store-product-image object-contain"
             sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 25vw"
             src={product.images.primary}
           />
           {product.images.alternate && (
-            <Image
+            <ProductImage
               unoptimized
               alt={`${product.name}, vista alternativa`}
-              className="product-card__alternate store-product-image object-cover"
-              fill
+              className="product-card__alternate store-product-image object-contain"
               sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 25vw"
               src={product.images.alternate}
             />

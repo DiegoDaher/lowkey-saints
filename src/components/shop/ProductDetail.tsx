@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import ProductImage from "@/components/catalog/ProductImage";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
@@ -28,11 +28,11 @@ export default function ProductDetail({
       </Link>
       <div className="mt-8 grid gap-10 md:grid-cols-2">
         <div className="min-w-0">
-          <div className="bg-bone relative aspect-[4/5] overflow-hidden">
-            <Image
-              fill
+          <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+            <ProductImage
               unoptimized
-              className="object-cover"
+              className="object-contain"
+              sizes="(max-width: 767px) 100vw, 50vw"
               src={p.images[image]?.url || "/images/hero-editorial.svg"}
               alt={p.images[image]?.alt || p.name}
             />
@@ -46,10 +46,10 @@ export default function ProductDetail({
                 onClick={() => setImage(i)}
                 className="store-choice border-line relative h-20 w-16 shrink-0 border"
               >
-                <Image
-                  fill
+                <ProductImage
                   unoptimized
-                  className="object-cover"
+                  className="object-contain"
+                  sizes="64px"
                   src={im.url}
                   alt={im.alt}
                 />
@@ -189,18 +189,26 @@ export default function ProductDetail({
           <div className="mt-5 flex flex-wrap gap-6">
             {p.complements.map(({ complementary: c }) => (
               <Link
-                className="store-product-card block w-48"
+                className="product-card store-product-card block w-48"
                 key={c.id}
                 href={"/productos/" + c.slug}
               >
-                <div className="relative aspect-[4/5] overflow-hidden">
-                  <Image
+                <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+                  <ProductImage
                     unoptimized
-                    fill
-                    className="store-product-image object-cover"
+                    className="product-card__primary store-product-image"
+                    sizes="192px"
                     src={c.images[0]?.url || "/images/hero-editorial.svg"}
                     alt={c.name}
                   />
+                  {c.images[1] && (
+                    <ProductImage
+                      className="product-card__alternate store-product-image"
+                      sizes="192px"
+                      src={c.images[1].url}
+                      alt={`${c.name}, vista alternativa`}
+                    />
+                  )}
                 </div>
                 <p className="store-product-name store-link mt-3">{c.name}</p>
                 <p>{formatPrice(Number(c.salePrice))}</p>

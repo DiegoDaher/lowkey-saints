@@ -160,9 +160,7 @@
   transition: transform var(--store-step) var(--store-ease);
 }
 .product-card__alternate.store-product-image {
-  transition:
-    opacity var(--store-fill) var(--store-ease),
-    transform var(--store-fill) var(--store-ease);
+  transition: transform var(--store-fill) var(--store-ease);
 }
 .store-product-image {
   transition: transform var(--store-fill) var(--store-ease);
@@ -412,31 +410,41 @@
   font-size: 0.6rem;
   letter-spacing: 0.16em;
 }
+.store-catalog {
+  --catalog-gutter: 1rem;
+}
+.store-catalog > :not(.store-toolbar, dialog) {
+  width: calc(100% - 2 * var(--catalog-gutter));
+  max-width: calc(1440px - 2 * var(--catalog-gutter));
+  margin-inline: auto;
+}
 .store-toolbar {
-  padding: 0.75rem 1rem;
-  border: 1px solid #e6dccd;
-  border-radius: 1.25rem;
-  background: #fffcf7;
-  box-shadow: 0 8px 24px #63492b08;
+  padding: 0.75rem
+    max(
+      var(--catalog-gutter),
+      calc((100% - 1440px) / 2 + var(--catalog-gutter))
+    );
+  border-block: 1px solid #e6dccd;
+  border-inline: 0;
+  background: transparent;
 }
 .store-toolbar select {
   background: transparent;
 }
 .store-card-media {
   border-radius: 1.3rem;
-  border: 1px solid #e8e0d4;
-  box-shadow: 0 12px 25px -15px #63492b50;
+  background: inherit;
 }
-.store-home .product-card {
+.product-card {
   padding: 0.5rem 0.5rem 1rem;
   border-radius: 1.6rem;
   background: #fffcf7;
   box-shadow: 0 7px 28px #63492b08;
 }
-.store-home .product-card > div:last-child {
+.product-card > div:last-child {
   padding-inline: 0.5rem;
 }
-.store-home .product-card .quick-view-trigger {
+.product-card .quick-view-trigger {
   border-radius: 2rem;
 }
 .store-action {
@@ -493,6 +501,16 @@
     margin-inline: 2rem;
   }
 }
+@media (min-width: 640px) {
+  .store-catalog {
+    --catalog-gutter: 2rem;
+  }
+}
+@media (min-width: 1024px) {
+  .store-catalog {
+    --catalog-gutter: 3rem;
+  }
+}
 @media (max-width: 767px) {
   .store-hero {
     border-radius: 0 0 2rem 2rem;
@@ -528,9 +546,8 @@
   }
   .store-toolbar {
     gap: 0.5rem;
-    padding: 0.75rem;
   }
-  .store-home .product-card {
+  .product-card {
     padding: 0.25rem 0.25rem 0.75rem;
     border-radius: 1.1rem;
   }
