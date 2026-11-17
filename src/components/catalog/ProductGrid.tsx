@@ -2,18 +2,11 @@
 
 import { useRef, useState } from "react";
 import QuickViewModal from "@/components/catalog/QuickViewModal";
-import {
-  ProductCard,
-  ProductCardSkeleton,
-} from "@/components/catalog/ProductCard";
+import { ProductCard } from "@/components/catalog/ProductCard";
 import type { Product } from "@/types/product";
 
 interface ProductGridProps {
   products: Product[];
-}
-
-interface ProductGridSkeletonProps {
-  count?: number;
 }
 
 export default function ProductGrid({ products }: ProductGridProps) {
@@ -53,19 +46,5 @@ export default function ProductGrid({ products }: ProductGridProps) {
         <QuickViewModal onClose={closeQuickView} product={selectedProduct} />
       )}
     </>
-  );
-}
-
-export function ProductGridSkeleton({ count = 8 }: ProductGridSkeletonProps) {
-  return (
-    <div
-      aria-label="Cargando productos"
-      aria-live="polite"
-      className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4 lg:gap-x-6"
-    >
-      {Array.from({ length: count }, (_, index) => (
-        <ProductCardSkeleton key={index} />
-      ))}
-    </div>
   );
 }

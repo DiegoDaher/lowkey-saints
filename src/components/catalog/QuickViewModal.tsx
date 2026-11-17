@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import Image from "next/image";
+import ProductImage from "@/components/catalog/ProductImage";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format-price";
 import type { Product } from "@/types/product";
@@ -62,23 +62,24 @@ export default function QuickViewModal({
       }}
       ref={dialogRef}
     >
-      <button
-        aria-label="Cerrar vista rápida"
-        className="bg-paper absolute top-3 right-3 z-10 flex size-11 items-center justify-center"
-        onClick={onClose}
-        type="button"
-      >
-        <X aria-hidden="true" size={22} />
-      </button>
+      <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-end px-3">
+        <button
+          aria-label="Cerrar vista rápida"
+          className="store-icon bg-paper pointer-events-auto flex size-11 items-center justify-center"
+          onClick={onClose}
+          type="button"
+        >
+          <X aria-hidden="true" size={22} />
+        </button>
+      </div>
 
       <div className="grid md:min-h-[34rem] md:grid-cols-2">
-        <div className="bg-bone p-4 pt-14 sm:p-6 sm:pt-14 md:p-8">
-          <div className="bg-paper relative aspect-[4/5] overflow-hidden">
-            <Image
+        <div className="p-4 pt-14 sm:p-6 sm:pt-14 md:p-8">
+          <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+            <ProductImage
               unoptimized
               alt={product.name}
-              className="object-cover"
-              fill
+              className="object-contain"
               sizes="(max-width: 767px) 100vw, 46vw"
               src={selectedImage}
             />
@@ -92,7 +93,7 @@ export default function QuickViewModal({
                 <button
                   aria-label={`Ver imagen ${index + 1} de ${product.name}`}
                   aria-pressed={selectedImage === image}
-                  className={`relative size-16 shrink-0 overflow-hidden border ${
+                  className={`store-choice relative h-20 w-16 shrink-0 overflow-hidden border ${
                     selectedImage === image
                       ? "border-ink"
                       : "border-transparent"
@@ -101,11 +102,10 @@ export default function QuickViewModal({
                   onClick={() => setSelectedImage(image)}
                   type="button"
                 >
-                  <Image
+                  <ProductImage
                     unoptimized
                     alt=""
-                    className="object-cover"
-                    fill
+                    className="object-contain"
                     sizes="64px"
                     src={image}
                   />
@@ -155,7 +155,7 @@ export default function QuickViewModal({
                   <button
                     aria-label={color.name}
                     aria-pressed={selectedColor === color.name}
-                    className={`size-8 rounded-full border-2 ${
+                    className={`store-choice store-swatch size-11 rounded-full border-2 ${
                       selectedColor === color.name
                         ? "border-ink outline-gold outline outline-1 outline-offset-2"
                         : "border-ink/15"
@@ -184,10 +184,10 @@ export default function QuickViewModal({
                 {product.sizes.map((size) => (
                   <button
                     aria-pressed={selectedSize === size}
-                    className={`min-h-11 min-w-11 border px-3 text-xs transition-colors ${
+                    className={`store-choice min-h-11 min-w-11 border px-3 text-xs transition-colors ${
                       selectedSize === size
                         ? "border-ink bg-ink text-paper"
-                        : "border-line hover:border-ink"
+                        : "border-line"
                     }`}
                     key={size}
                     onClick={() => setSelectedSize(size)}
@@ -201,7 +201,7 @@ export default function QuickViewModal({
           )}
 
           <Link
-            className="mt-5 text-center text-xs font-semibold tracking-[0.1em] underline underline-offset-4"
+            className="store-link mt-5 inline-flex min-h-11 items-center self-center text-center text-xs font-semibold tracking-[0.1em]"
             href={`/productos/${product.slug}`}
             onClick={onClose}
           >

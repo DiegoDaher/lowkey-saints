@@ -1,11 +1,13 @@
 "use client";
+import Loader from "@/components/ui/Loader";
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import ProductImage from "@/components/catalog/ProductImage";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
+import StoreAction from "@/components/ui/StoreAction";
 export default function ProductDetail({
   product: p,
 }: {
@@ -19,30 +21,36 @@ export default function ProductDetail({
   const v = p.variants.find((v) => v.id === variantId);
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
-      <Link href="/#catalogo">← Catálogo</Link>
+      <Link
+        className="store-link inline-flex min-h-11 items-center"
+        href="/#catalogo"
+      >
+        ← Catálogo
+      </Link>
       <div className="mt-8 grid gap-10 md:grid-cols-2">
-        <div>
-          <div className="relative aspect-[4/5] bg-stone-100">
-            <Image
-              fill
+        <div className="min-w-0">
+          <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+            <ProductImage
               unoptimized
-              className="object-cover"
+              className="object-contain"
+              sizes="(max-width: 767px) 100vw, 50vw"
               src={p.images[image]?.url || "/images/hero-editorial.svg"}
               alt={p.images[image]?.alt || p.name}
             />
           </div>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex gap-2 overflow-x-auto p-1">
             {p.images.map((im, i) => (
               <button
                 aria-label={"Ver imagen " + (i + 1)}
+                aria-pressed={image === i}
                 key={im.id}
                 onClick={() => setImage(i)}
-                className="relative h-20 w-16 border"
+                className="store-choice border-line relative h-20 w-16 shrink-0 border"
               >
-                <Image
-                  fill
+                <ProductImage
                   unoptimized
-                  className="object-cover"
+                  className="object-contain"
+                  sizes="64px"
                   src={im.url}
                   alt={im.alt}
                 />
@@ -50,7 +58,7 @@ export default function ProductDetail({
             ))}
           </div>
         </div>
-        <section className="space-y-6">
+        <section className="min-w-0 space-y-6">
           <p>{p.categories.map((c) => c.category.name).join(" / ")}</p>
           <h1 className="font-display text-5xl uppercase">{p.name}</h1>
           <p className="text-xl">{formatPrice(Number(p.salePrice))}</p>
@@ -58,7 +66,7 @@ export default function ProductDetail({
           <label className="block">
             Talla y color
             <select
-              className="mt-2 block w-full border p-3"
+              className="store-field mt-2 block w-full border p-3"
               value={variantId}
               onChange={(e) => {
                 setVariant(e.target.value);
@@ -75,8 +83,8 @@ export default function ProductDetail({
           {v && v.stock > 0 ? (
             <>
               <p>{v.stock <= 3 ? "Quedan pocas unidades" : "Disponible"}</p>
-              <button
-                className="shop-button"
+              <StoreAction
+                className="w-full sm:w-auto"
                 onClick={() => {
                   cart.add({
                     variantId: v.id,
@@ -89,8 +97,11 @@ export default function ProductDetail({
                 }}
               >
                 Agregar a la bolsa
-              </button>
-              <Link className="ml-5 underline" href="/bolsa">
+              </StoreAction>
+              <Link
+                className="store-link mt-3 inline-flex min-h-11 items-center sm:mt-0 sm:ml-5"
+                href="/bolsa"
+              >
                 Ver bolsa
               </Link>
             </>
@@ -121,7 +132,7 @@ export default function ProductDetail({
               <label className="block">
                 Avísame cuando vuelva
                 <input
-                  className="block w-full border p-3"
+                  className="store-field block w-full border p-3"
                   name="email"
                   type="email"
                   placeholder="Tu correo"
@@ -132,14 +143,24 @@ export default function ProductDetail({
                 <input name="reactivate" type="checkbox" /> Reactivar mis avisos
                 si antes me di de baja
               </label>
-              <button disabled={busy} className="shop-button">
-                Recibir aviso
-              </button>
+              <StoreAction type="submit" disabled={busy} aria-busy={busy}>
+                {busy ? (
+                  <Loader
+                    announce={false}
+                    variant="inline"
+                    label="Registrando…"
+                  />
+                ) : (
+                  "Recibir aviso"
+                )}
+              </StoreAction>
             </form>
           ) : (
             <p>No hay variantes disponibles.</p>
           )}
-          <p role="status">{message}</p>
+          <p className="store-status" role="status">
+            {message}
+          </p>
           <h2 className="text-xl">Materiales</h2>
           <p>{p.materials}</p>
           <h2 className="text-xl">Especificaciones</h2>
@@ -176,17 +197,29 @@ export default function ProductDetail({
           <h2 className="font-display text-3xl">Completa el look</h2>
           <div className="mt-5 flex flex-wrap gap-6">
             {p.complements.map(({ complementary: c }) => (
-              <Link className="w-48" key={c.id} href={"/productos/" + c.slug}>
-                <div className="relative aspect-[4/5]">
-                  <Image
+              <Link
+                className="product-card store-product-card block w-48"
+                key={c.id}
+                href={"/productos/" + c.slug}
+              >
+                <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+                  <ProductImage
                     unoptimized
-                    fill
-                    className="object-cover"
+                    className="product-card__primary store-product-image"
+                    sizes="192px"
                     src={c.images[0]?.url || "/images/hero-editorial.svg"}
                     alt={c.name}
                   />
+                  {c.images[1] && (
+                    <ProductImage
+                      className="product-card__alternate store-product-image"
+                      sizes="192px"
+                      src={c.images[1].url}
+                      alt={`${c.name}, vista alternativa`}
+                    />
+                  )}
                 </div>
-                <p>{c.name}</p>
+                <p className="store-product-name store-link mt-3">{c.name}</p>
                 <p>{formatPrice(Number(c.salePrice))}</p>
               </Link>
             ))}

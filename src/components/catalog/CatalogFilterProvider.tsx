@@ -23,6 +23,7 @@ interface CatalogFilterContextValue {
   filters: CatalogFilters;
   setFilters: (filters: CatalogFilters) => void;
   setCategory: (category: ProductCategory) => void;
+  resetFilters: () => void;
 }
 
 const initialFilters: CatalogFilters = {
@@ -44,7 +45,8 @@ export function CatalogFilterProvider({ children }: { children: ReactNode }) {
       filters,
       setFilters,
       setCategory: (category: ProductCategory) =>
-        setFilters((currentFilters) => ({ ...currentFilters, category })),
+        setFilters({ ...initialFilters, category }),
+      resetFilters: () => setFilters({ ...initialFilters }),
     }),
     [filters]
   );
