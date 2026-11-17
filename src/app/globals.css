@@ -7,10 +7,19 @@
   --color-line: #e5e3de;
   --color-muted: #6b6b6b;
   --color-gold: #c9a66b;
+  --color-gold-dark: #805c27;
+  --color-gold-soft: #f6efe3;
   --color-sale: #b3261e;
   --font-sans: var(--font-inter);
   --font-display: var(--font-barlow-condensed);
   --font-script: var(--font-kaushan-script);
+}
+
+:root {
+  --store-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --store-fast: 150ms;
+  --store-step: 200ms;
+  --store-fill: 300ms;
 }
 
 * {

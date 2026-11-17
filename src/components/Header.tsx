@@ -2,6 +2,7 @@
 
 import { Menu, Search, ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/catalog/CatalogFilterProvider";
 
 const categories: { label: string; value: ProductCategory }[] = [
+  { label: "Inicio", value: "Todas" },
   { label: "Tops", value: "Tops" },
   { label: "Pantalones", value: "Pantalones" },
   { label: "Accesorios", value: "Accesorios" },
@@ -17,6 +19,7 @@ const categories: { label: string; value: ProductCategory }[] = [
 ];
 
 export default function Header() {
+  const pathname = usePathname();
   const { filters, setCategory } = useCatalogFilters();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -62,14 +65,14 @@ export default function Header() {
   }
 
   return (
-    <header className="border-line bg-paper sticky top-0 z-40 border-b">
+    <header className="store-header border-line bg-paper sticky top-0 z-40 border-b">
       <div className="mx-auto flex h-[4.5rem] max-w-[1440px] items-center justify-between px-4 sm:px-8 lg:h-20 lg:px-12">
         <button
           ref={menuButtonRef}
           aria-expanded={menuOpen}
           aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
           aria-controls="mobile-category-navigation"
-          className="flex size-11 items-center justify-center lg:hidden"
+          className="store-icon flex size-11 items-center justify-center lg:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
           type="button"
         >
@@ -81,7 +84,7 @@ export default function Header() {
         </button>
 
         <div className="hidden min-w-11 lg:block" aria-hidden="true" />
-        <Logo />
+        <Logo onNavigate={() => setMenuOpen(false)} />
 
         <nav aria-label="Categorías principales" className="hidden lg:block">
           <ul className="flex items-center gap-8">
@@ -89,11 +92,13 @@ export default function Header() {
               <li key={category.label}>
                 <Link
                   aria-current={
-                    filters.category === category.value ? "true" : undefined
+                    pathname === "/" && filters.category === category.value
+                      ? "true"
+                      : undefined
                   }
-                  className="font-display hover:text-muted text-sm font-semibold tracking-[0.12em] transition-colors"
-                  href="/#catalogo"
-                  onClick={() => selectCategory(category.value)}
+                  className="store-link store-nav-link font-display text-sm font-semibold tracking-[0.12em]"
+                  href={category.value === "Todas" ? "/#inicio" : "/#catalogo"}
+                  onNavigate={() => selectCategory(category.value)}
                 >
                   {category.label}
                 </Link>
@@ -105,7 +110,7 @@ export default function Header() {
         <div className="flex min-w-11 items-center justify-end gap-1">
           <button
             aria-label="Buscar (próximamente)"
-            className="flex size-11 items-center justify-center"
+            className="store-icon flex size-11 items-center justify-center"
             type="button"
           >
             <Search aria-hidden="true" size={20} strokeWidth={1.6} />
@@ -113,7 +118,7 @@ export default function Header() {
           <Link
             href="/bolsa"
             aria-label="Bolsa"
-            className="flex size-11 items-center justify-center"
+            className="store-icon flex size-11 items-center justify-center"
             type="button"
           >
             <ShoppingBag aria-hidden="true" size={20} strokeWidth={1.6} />
@@ -136,11 +141,15 @@ export default function Header() {
                 >
                   <Link
                     aria-current={
-                      filters.category === category.value ? "true" : undefined
+                      pathname === "/" && filters.category === category.value
+                        ? "true"
+                        : undefined
                     }
-                    className="font-display block py-4 text-xl font-semibold tracking-[0.1em]"
-                    href="/#catalogo"
-                    onClick={() => selectCategory(category.value)}
+                    className="store-link store-nav-link font-display w-full py-4 text-xl font-semibold tracking-[0.1em]"
+                    href={
+                      category.value === "Todas" ? "/#inicio" : "/#catalogo"
+                    }
+                    onNavigate={() => selectCategory(category.value)}
                   >
                     {category.label}
                   </Link>

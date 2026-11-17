@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-11-17T04:19:23.410Z",
+  "products": 4,
+  "variants": 39,
+  "images": 13,
+  "totalStock": 39,
+  "repeatImportPreservedData": false,
+  "initialStockVerified": true,
+  "publicApiAndImageHashesVerified": true,
+  "items": [
+    {
+      "slug": "alo-hoodie",
+      "price": "1999",
+      "variants": 12,
+      "images": 4
+    },
+    {
+      "slug": "alo-crew-neck",
+      "price": "1799",
+      "variants": 12,
+      "images": 4
+    },
+    {
+      "slug": "alo-quarter-zip",
+      "price": "1799",
+      "variants": 6,
+      "images": 2
+    },
+    {
+      "slug": "essentials-hoodie",
+      "price": "1999",
+      "variants": 9,
+      "images": 3
+    }
+  ]
+}

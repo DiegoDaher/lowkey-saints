@@ -17,17 +17,17 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
       : undefined);
 
   return (
-    <article className="product-card min-w-0">
-      <div className="group bg-bone relative aspect-[4/5] overflow-hidden">
+    <article className="product-card store-product-card min-w-0">
+      <div className="store-card-media group bg-bone relative aspect-[4/5] overflow-hidden">
         <Link
           aria-label={`Ver ${product.name}`}
-          className="absolute inset-0"
+          className="store-image-link absolute inset-0"
           href={`/productos/${product.slug}`}
         >
           <Image
             unoptimized
             alt={product.name}
-            className="object-cover"
+            className="store-product-image object-cover"
             fill
             sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 25vw"
             src={product.images.primary}
@@ -36,7 +36,7 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
             <Image
               unoptimized
               alt={`${product.name}, vista alternativa`}
-              className="product-card__alternate object-cover"
+              className="product-card__alternate store-product-image object-cover"
               fill
               sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 25vw"
               src={product.images.alternate}
@@ -52,7 +52,7 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
 
         <button
           aria-label={`Vista rápida de ${product.name}`}
-          className="quick-view-trigger bg-paper/95 text-ink absolute right-2 bottom-2 z-10 inline-flex min-h-10 items-center gap-2 px-3 text-[0.65rem] font-bold tracking-[0.08em] transition-all duration-200 sm:right-3 sm:bottom-3"
+          className="quick-view-trigger bg-paper/95 text-ink absolute right-2 bottom-2 z-10 inline-flex min-h-11 items-center gap-2 px-3 text-[0.65rem] font-bold tracking-[0.08em] transition-[opacity,transform,background-color] duration-200 sm:right-3 sm:bottom-3"
           onClick={(event) => onQuickView(product, event.currentTarget)}
           type="button"
         >
@@ -63,8 +63,10 @@ export function ProductCard({ onQuickView, product }: ProductCardProps) {
 
       <div className="pt-3 sm:pt-4">
         <Link className="block" href={`/productos/${product.slug}`}>
-          <h3 className="font-display line-clamp-2 min-h-10 text-base leading-5 font-semibold tracking-[0.04em] uppercase sm:text-lg">
-            {product.name}
+          <h3 className="font-display line-clamp-2 min-h-11 text-base leading-5 font-semibold tracking-[0.04em] uppercase sm:text-lg">
+            <span className="store-product-name store-link">
+              {product.name}
+            </span>
           </h3>
         </Link>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">

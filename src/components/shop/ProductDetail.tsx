@@ -6,6 +6,7 @@ import type { CatalogProduct } from "../../../supabase/functions/_shared/contrac
 import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
+import StoreAction from "@/components/ui/StoreAction";
 export default function ProductDetail({
   product: p,
 }: {
@@ -19,10 +20,15 @@ export default function ProductDetail({
   const v = p.variants.find((v) => v.id === variantId);
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
-      <Link href="/#catalogo">← Catálogo</Link>
+      <Link
+        className="store-link inline-flex min-h-11 items-center"
+        href="/#catalogo"
+      >
+        ← Catálogo
+      </Link>
       <div className="mt-8 grid gap-10 md:grid-cols-2">
-        <div>
-          <div className="relative aspect-[4/5] bg-stone-100">
+        <div className="min-w-0">
+          <div className="bg-bone relative aspect-[4/5] overflow-hidden">
             <Image
               fill
               unoptimized
@@ -31,13 +37,14 @@ export default function ProductDetail({
               alt={p.images[image]?.alt || p.name}
             />
           </div>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex gap-2 overflow-x-auto p-1">
             {p.images.map((im, i) => (
               <button
                 aria-label={"Ver imagen " + (i + 1)}
+                aria-pressed={image === i}
                 key={im.id}
                 onClick={() => setImage(i)}
-                className="relative h-20 w-16 border"
+                className="store-choice border-line relative h-20 w-16 shrink-0 border"
               >
                 <Image
                   fill
@@ -50,7 +57,7 @@ export default function ProductDetail({
             ))}
           </div>
         </div>
-        <section className="space-y-6">
+        <section className="min-w-0 space-y-6">
           <p>{p.categories.map((c) => c.category.name).join(" / ")}</p>
           <h1 className="font-display text-5xl uppercase">{p.name}</h1>
           <p className="text-xl">{formatPrice(Number(p.salePrice))}</p>
@@ -58,7 +65,7 @@ export default function ProductDetail({
           <label className="block">
             Talla y color
             <select
-              className="mt-2 block w-full border p-3"
+              className="store-field mt-2 block w-full border p-3"
               value={variantId}
               onChange={(e) => {
                 setVariant(e.target.value);
@@ -75,8 +82,8 @@ export default function ProductDetail({
           {v && v.stock > 0 ? (
             <>
               <p>{v.stock <= 3 ? "Quedan pocas unidades" : "Disponible"}</p>
-              <button
-                className="shop-button"
+              <StoreAction
+                className="w-full sm:w-auto"
                 onClick={() => {
                   cart.add({
                     variantId: v.id,
@@ -89,8 +96,11 @@ export default function ProductDetail({
                 }}
               >
                 Agregar a la bolsa
-              </button>
-              <Link className="ml-5 underline" href="/bolsa">
+              </StoreAction>
+              <Link
+                className="store-link mt-3 inline-flex min-h-11 items-center sm:mt-0 sm:ml-5"
+                href="/bolsa"
+              >
                 Ver bolsa
               </Link>
             </>
@@ -121,7 +131,7 @@ export default function ProductDetail({
               <label className="block">
                 Avísame cuando vuelva
                 <input
-                  className="block w-full border p-3"
+                  className="store-field block w-full border p-3"
                   name="email"
                   type="email"
                   placeholder="Tu correo"
@@ -132,14 +142,16 @@ export default function ProductDetail({
                 <input name="reactivate" type="checkbox" /> Reactivar mis avisos
                 si antes me di de baja
               </label>
-              <button disabled={busy} className="shop-button">
-                Recibir aviso
-              </button>
+              <StoreAction type="submit" disabled={busy} aria-busy={busy}>
+                {busy ? "Registrando…" : "Recibir aviso"}
+              </StoreAction>
             </form>
           ) : (
             <p>No hay variantes disponibles.</p>
           )}
-          <p role="status">{message}</p>
+          <p className="store-status" role="status">
+            {message}
+          </p>
           <h2 className="text-xl">Materiales</h2>
           <p>{p.materials}</p>
           <h2 className="text-xl">Especificaciones</h2>
@@ -176,17 +188,21 @@ export default function ProductDetail({
           <h2 className="font-display text-3xl">Completa el look</h2>
           <div className="mt-5 flex flex-wrap gap-6">
             {p.complements.map(({ complementary: c }) => (
-              <Link className="w-48" key={c.id} href={"/productos/" + c.slug}>
-                <div className="relative aspect-[4/5]">
+              <Link
+                className="store-product-card block w-48"
+                key={c.id}
+                href={"/productos/" + c.slug}
+              >
+                <div className="relative aspect-[4/5] overflow-hidden">
                   <Image
                     unoptimized
                     fill
-                    className="object-cover"
+                    className="store-product-image object-cover"
                     src={c.images[0]?.url || "/images/hero-editorial.svg"}
                     alt={c.name}
                   />
                 </div>
-                <p>{c.name}</p>
+                <p className="store-product-name store-link mt-3">{c.name}</p>
                 <p>{formatPrice(Number(c.salePrice))}</p>
               </Link>
             ))}

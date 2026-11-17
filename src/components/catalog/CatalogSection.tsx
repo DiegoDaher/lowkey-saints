@@ -12,6 +12,7 @@ import {
 } from "@/components/catalog/CatalogFilterProvider";
 import CatalogToolbar from "@/components/catalog/CatalogToolbar";
 import ProductGrid from "@/components/catalog/ProductGrid";
+import StoreAction from "@/components/ui/StoreAction";
 
 export default function CatalogSection() {
   const { filters, setFilters } = useCatalogFilters();
@@ -126,22 +127,24 @@ export default function CatalogSection() {
       ) : (
         <ProductGrid products={products} />
       )}
-      <div className="mt-8 flex items-center justify-center gap-5">
-        <button
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-5">
+        <StoreAction
+          variant="secondary"
           disabled={page <= 1 || loading}
           onClick={() => setPage((p) => p - 1)}
         >
           Anterior
-        </button>
+        </StoreAction>
         <span>
           {page} / {Math.max(1, pages)}
         </span>
-        <button
+        <StoreAction
+          variant="secondary"
           disabled={page >= pages || loading}
           onClick={() => setPage((p) => p + 1)}
         >
           Siguiente
-        </button>
+        </StoreAction>
       </div>
       {filterDialogOpen && (
         <CatalogFilterDialog
