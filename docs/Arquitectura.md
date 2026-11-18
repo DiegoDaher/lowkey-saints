@@ -17,12 +17,16 @@ flowchart TD
   J -->|HTTPS| R[Resend]
 ```
 
-La API valida el token con Auth y consulta `AdminProfile.active` y `role`. ADMIN accede a finanzas y roles; STAFF opera catálogo, inventario y pedidos. El precio se calcula en servidor y las reservas se guardan en transacciones. RLS y permisos SQL aportan defensa adicional; Prisma no hereda automáticamente la identidad JWT del navegador.
+La API valida el token con Auth y consulta `AdminProfile.active` y `role`. ADMIN accede a finanzas y roles; OPERATOR consulta catálogo, modifica existencias y opera pedidos; solo ADMIN modifica catálogo e imágenes. El precio se calcula en servidor y las reservas se guardan en transacciones. RLS y permisos SQL aportan defensa adicional; Prisma no hereda automáticamente la identidad JWT del navegador.
 
-El esquema está en `prisma/schema.prisma` y las tres migraciones en `prisma/migrations`. Las funciones comparten contratos Zod, servicio de negocio, lector acotado y notificaciones. El lector acepta hasta 200 000 bytes JSON o 5 MiB de imágenes, cancela el flujo al excederlos y genera `AppError(413)`.
+El esquema está en `prisma/schema.prisma` y las migraciones en `prisma/migrations`. Las funciones comparten contratos Zod, servicio de negocio, lector acotado y notificaciones. El lector acepta hasta 200 000 bytes JSON o 5 MiB de imágenes, cancela el flujo al excederlos y genera `AppError(413)`.
 
 `jobs` expira reservas y procesa la cola de reposición. El código integra Resend con reintentos e idempotencia; su existencia no demuestra entrega de correo. El enlace `wa.me` abre WhatsApp, sin enviar automáticamente un mensaje por Business API.
 
 PostgreSQL usa TLS obligatorio con la CA pública de docs/prod-ca-2021.crt, compartida por api, jobs y clientes administrativos. Se verificó certificado y hostname desde Node y Deno; api y jobs reportan TLS 1.3 en pg_stat_ssl. Supabase tiene Enforce SSL activo y rechaza conexiones sin cifrado. Las pruebas negativas rechazan CA ajena y hostname incorrecto. Prisma CLI también usa la CA con aceptación estricta.
 
-El despliegue trata frontend, API, migraciones y worker por separado. Actualizar la API no requiere migraciones ni activar Cron. Ver [informe de seguridad](seguridad-apis.md).
+El despliegue trata frontend, API, migraciones y worker por separado. Las entregas que cambian el esquema, como ADM-04, requieren coordinar migraciones y escritores; las actualizaciones de API sin cambios de datos no requieren migrar ni activar Cron. Ver [informe de seguridad](seguridad-apis.md).
+
+## Multimedia ADM-04
+
+El adaptador Storage vive en `supabase/functions/_shared/storage/` y lo comparten API y jobs. `ProductMediaAsset` coordina subidas temporales, referencias y limpieza; `ProductImage.path` conserva la ruta y la API deriva su URL pública. El worker elimina únicamente archivos sin referencias y está desactivado por defecto. Ver [operación de ADM-04](adm-04-multimedia.md).

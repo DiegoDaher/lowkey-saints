@@ -63,7 +63,7 @@ export default function Hero({
             <br />
             EVERY DAY.
           </span>
-          <span className="store-hero-caption">01 — THE EVERYDAY EDIT</span>
+          <span className="store-hero-caption"></span>
         </div>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { mediaIntegration } from "./media-integration.ts";
 import { PrismaClient } from "../supabase/functions/_shared/generated/prisma/client.ts";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ShopService } from "../supabase/functions/_shared/service.ts";
@@ -48,6 +49,63 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     try {
+      // ADM-03: a conflict or archived row rolls back the entire multi-product batch.
+      const bulk = [await variant(2), await variant(3)].sort((a, b) =>
+        a.id.localeCompare(b.id)
+      );
+      await shop.updateStock(
+        bulk.map((v) => ({ id: v.id, version: v.version, stock: 8 }))
+      );
+      for (const v of bulk) {
+        const actual = await db.productVariant.findUniqueOrThrow({
+          where: { id: v.id },
+        });
+        assert(
+          actual.stock === 8 && actual.version === 1,
+          "bulk stock and version updated"
+        );
+      }
+      for (const archived of [false, true]) {
+        if (archived)
+          await db.product.update({
+            where: { id: bulk[1].productId },
+            data: { isArchived: true },
+          });
+        let rejected = false;
+        try {
+          await shop.updateStock([
+            { id: bulk[0].id, version: 1, stock: 10 },
+            { id: bulk[1].id, version: archived ? 1 : 0, stock: 10 },
+          ]);
+        } catch (error) {
+          rejected = error instanceof AppError && error.status === 409;
+        }
+        assert(rejected, "conflict or archived product rejects batch");
+        assert(
+          (
+            await db.productVariant.findUniqueOrThrow({
+              where: { id: bulk[0].id },
+            })
+          ).stock === 8,
+          "entire batch rolled back"
+        );
+      }
+      await db.product.update({
+        where: { id: bulk[1].productId },
+        data: { isArchived: false },
+      });
+      await db.productVariant.update({
+        where: { id: bulk[1].id },
+        data: { isArchived: true },
+      });
+      let archivedVariantRejected = false;
+      try {
+        await shop.updateStock([{ id: bulk[1].id, version: 1, stock: 9 }]);
+      } catch (error) {
+        archivedVariantRejected =
+          error instanceof AppError && error.status === 409;
+      }
+      assert(archivedVariantRejected, "archived variant rejects stock write");
       const v = await variant();
       const results = await Promise.allSettled([
         shop.createOrder(order(v.id)),
@@ -472,11 +530,11 @@ Deno.test({
         ADMIN: await db.adminProfile.create({
           data: { id: crypto.randomUUID(), role: "ADMIN" },
         }),
-        STAFF: await db.adminProfile.create({
-          data: { id: crypto.randomUUID(), role: "STAFF" },
+        OPERATOR: await db.adminProfile.create({
+          data: { id: crypto.randomUUID(), role: "OPERATOR" },
         }),
         INACTIVE: await db.adminProfile.create({
-          data: { id: crypto.randomUUID(), role: "STAFF", active: false },
+          data: { id: crypto.randomUUID(), role: "OPERATOR", active: false },
         }),
       };
       const fakeAuth = {
@@ -484,13 +542,225 @@ Deno.test({
           getUser: (token: string) => {
             const profile = profiles[token as keyof typeof profiles];
             return Promise.resolve({
-              data: { user: profile ? { id: profile.id } : null },
-              error: profile ? null : new Error("invalid"),
+              data: {
+                user: profile
+                  ? { id: profile.id }
+                  : token === "UNASSIGNED"
+                    ? { id: "00000000-0000-4000-8000-000000000099" }
+                    : null,
+              },
+              error:
+                profile || token === "UNASSIGNED" ? null : new Error("invalid"),
             });
           },
         },
       } as unknown as NonNullable<Parameters<typeof createApiHandler>[1]>;
       const handler = createApiHandler(db, fakeAuth);
+      const adminRequest = (
+        path: string,
+        method: string,
+        token?: string,
+        payload?: unknown
+      ) =>
+        handler(
+          new Request("http://localhost/v1/admin" + path, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: "Bearer " + token } : {}),
+            },
+            ...(method === "GET"
+              ? {}
+              : { body: JSON.stringify(payload ?? {}) }),
+          })
+        );
+      // Exercise authorization through the actual handler, before payload parsing or writes.
+      const restricted = [
+        ["/products", "POST"],
+        ["/products/" + v.productId, "PUT"],
+        ["/products/" + v.productId, "PATCH"],
+        ["/variants", "POST"],
+        ["/variants/" + v.id, "PATCH"],
+        ["/restock", "GET"],
+        ["/restock/retry", "POST"],
+        ["/finances", "GET"],
+        ["/finances", "PUT"],
+        ["/roles", "GET"],
+        ["/roles", "PUT"],
+        ["/images", "POST"],
+        ["/images/" + crypto.randomUUID(), "DELETE"],
+        ["/health", "GET"],
+      ];
+      for (const [path, method] of restricted) {
+        for (const token of [
+          undefined,
+          "INVALID",
+          "OPERATOR",
+          "INACTIVE",
+          "UNASSIGNED",
+        ]) {
+          const response = await adminRequest(path, method, token);
+          assert(
+            response.status ===
+              (token === "OPERATOR" ||
+              token === "INACTIVE" ||
+              token === "UNASSIGNED"
+                ? 403
+                : 401),
+            method + " " + path + " rejects " + token
+          );
+        }
+      }
+      for (const path of ["/me", "/products", "/products/" + v.productId]) {
+        for (const token of ["ADMIN", "OPERATOR"]) {
+          const response = await adminRequest(path, "GET", token);
+          assert(response.status === 200, "allowed read " + path);
+          const serialized = await response.text();
+          assert(
+            !serialized.includes('"costPrice"') &&
+              !serialized.includes('"financial"'),
+            "operational DTO excludes costs"
+          );
+        }
+      }
+      const inventory = await variant(7);
+      assert(
+        (
+          await adminRequest("/stock", "PATCH", "OPERATOR", {
+            changes: [
+              { id: inventory.id, version: inventory.version, stock: 9 },
+            ],
+          })
+        ).status === 200,
+        "operator updates stock"
+      );
+      assert(
+        (
+          await db.productVariant.findUniqueOrThrow({
+            where: { id: inventory.id },
+          })
+        ).stock === 9,
+        "stock persisted"
+      );
+      assert(
+        (
+          await adminRequest("/finances", "PUT", "ADMIN", {
+            productId: inventory.productId,
+            costPrice: "30.00",
+          })
+        ).status === 200,
+        "admin updates cost"
+      );
+      const historical = await shop.createOrder(order(inventory.id));
+      const originalSku = inventory.sku;
+      assert(
+        (
+          await adminRequest("/variants/" + inventory.id, "PATCH", "ADMIN", {
+            version: 2,
+            size: "XL",
+            color: "Azul",
+            sku: crypto.randomUUID(),
+            colorHex: "#0000ff",
+          })
+        ).status === 200,
+        "variant attributes updated with version"
+      );
+      assert(
+        (
+          await adminRequest(
+            "/products/" + inventory.productId,
+            "PATCH",
+            "ADMIN",
+            {
+              version: 0,
+              isArchived: true,
+            }
+          )
+        ).status === 200,
+        "product archived"
+      );
+      const historicalItem = await db.orderItem.findFirstOrThrow({
+        where: { orderId: historical.id },
+      });
+      assert(
+        historicalItem.sku === originalSku && historicalItem.size === "M",
+        "variant editing preserves order snapshot"
+      );
+      assert(
+        (
+          await adminRequest("/stock", "PATCH", "OPERATOR", {
+            changes: [{ id: inventory.id, version: 3, stock: 20 }],
+          })
+        ).status === 409,
+        "archived stock blocked through API"
+      );
+      const archivedListing = await adminRequest(
+        "/products?state=archived",
+        "GET",
+        "ADMIN"
+      );
+      assert(
+        (await archivedListing.json()).items.some(
+          (p: { id: string }) => p.id === inventory.productId
+        ),
+        "archived filter returns archived product"
+      );
+      assert(
+        (
+          await adminRequest(
+            "/products/" + inventory.productId,
+            "PATCH",
+            "ADMIN",
+            {
+              version: 1,
+              isArchived: false,
+            }
+          )
+        ).status === 200,
+        "product restored"
+      );
+      assert(
+        (
+          await db.productVariant.findUniqueOrThrow({
+            where: { id: inventory.id },
+          })
+        ).stock === 8,
+        "archive and restore preserve stock"
+      );
+      for (const path of ["/finances", "/roles", "/restock"]) {
+        assert(
+          (await adminRequest(path, "GET", "ADMIN")).status === 200,
+          "admin read " + path
+        );
+      }
+      assert(
+        (await adminRequest("/unregistered", "GET", "ADMIN")).status === 403,
+        "unknown endpoint denied"
+      );
+      await db.adminProfile.update({
+        where: { id: profiles.ADMIN.id },
+        data: { role: "OPERATOR" },
+      });
+      assert(
+        (await adminRequest("/finances", "GET", "ADMIN")).status === 403,
+        "downgrade applies to existing token"
+      );
+      await db.adminProfile.update({
+        where: { id: profiles.ADMIN.id },
+        data: { role: "ADMIN" },
+      });
+      await db.adminProfile.update({
+        where: { id: profiles.OPERATOR.id },
+        data: { active: false },
+      });
+      assert(
+        (await adminRequest("/me", "GET", "OPERATOR")).status === 403,
+        "deactivation applies to existing token"
+      );
+      await db.adminProfile.update({
+        where: { id: profiles.OPERATOR.id },
+        data: { active: true },
+      });
       const send = (path: string, token?: string, status?: unknown) =>
         handler(
           new Request("http://localhost/v1/admin/orders" + path, {
@@ -515,7 +785,7 @@ Deno.test({
           "mutation auth"
         );
       }
-      for (const token of ["ADMIN", "STAFF"] as const) {
+      for (const token of ["ADMIN", "OPERATOR"] as const) {
         const apiOrder = await shop.createOrder(order((await variant()).id));
         assert((await send("", token)).status === 200, "role lists orders");
         assert(
@@ -554,7 +824,7 @@ Deno.test({
           "API actor from session"
         );
       }
-      const filteredResponse = await send("?status=SHIPPED", "STAFF");
+      const filteredResponse = await send("?status=SHIPPED", "OPERATOR");
       assert(
         filteredResponse.status === 200 &&
           (await filteredResponse.json()).every(
@@ -579,6 +849,7 @@ Deno.test({
         ).status === 404,
         "missing order mutation"
       );
+      await mediaIntegration(db);
       console.log("Integration assertions passed");
     } finally {
       await db.$disconnect();

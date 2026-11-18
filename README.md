@@ -64,7 +64,7 @@ Las pruebas de navegador usan respuestas controladas para catálogo y pedidos. N
 | -------------------------- | ------------------------- | ------------------------------------------------------------------ | --------------------------------- |
 | Diagnóstico y arquitectura | IMPLEMENTADO              | Código, diagrama y captura local                                   | Mantener documentación            |
 | Dos servicios web          | IMPLEMENTADO              | API propia 200 y Supabase Auth real; cloud.json                    | Catálogo remoto vacío             |
-| Autorización               | IMPLEMENTADO              | Finanzas: anónimo 401, ADMIN 200, STAFF 403                        | Ampliar cobertura                 |
+| Autorización               | IMPLEMENTADO              | Finanzas: anónimo 401, ADMIN 200, OPERATOR 403                     | Ampliar cobertura                 |
 | Límite del cuerpo          | IMPLEMENTADO y publicado  | 32 pruebas; before-after.json; commit 1f8d450; backend-deploy.json | Ampliar pruebas HTTP locales      |
 | Frontend en Vercel         | IMPLEMENTADO y verificado | HTTP 200, CORS permitido, redirección y TLS; publication.json      | Catálogo remoto vacío             |
 | HTTPS Supabase             | IMPLEMENTADO y verificado | TLS 1.3; certificado validado                                      | Repetir control de vigencia       |

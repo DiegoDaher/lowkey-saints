@@ -1,3 +1,4 @@
+import { attachMedia, detachMedia } from "./storage/media.ts";
 import { CreateOrderUseCase } from "./orders/application/CreateOrderUseCase.ts";
 import { Prisma, PrismaClient } from "./generated/prisma/client.ts";
 import { AppError, requireTransition } from "./domain.ts";
@@ -132,8 +133,14 @@ export class ShopService {
       for (const c of [...changes].sort((a, b) => a.id.localeCompare(b.id))) {
         const before = await tx.productVariant.findUnique({
           where: { id: c.id },
+          include: { product: { select: { isArchived: true } } },
         });
         if (!before) throw new AppError(404, "Variante no encontrada");
+        if (before.isArchived || before.product.isArchived)
+          throw new AppError(
+            409,
+            "El producto o la variante está archivado; recarga la vista"
+          );
         const result = await tx.productVariant.updateMany({
           where: { id: c.id, version: c.version },
           data: { stock: c.stock, version: { increment: 1 } },
@@ -192,7 +199,9 @@ export class ShopService {
       });
     });
   }
-  async saveProduct(input: ProductInput, productId?: string) {
+  async saveProduct(input: ProductInput, productId?: string, actor?: string) {
+    if (new Set(input.images.map((im) => im.path)).size !== input.images.length)
+      throw new AppError(400, "Imagen repetida");
     if (
       new Set(input.complementaryIds).size !== input.complementaryIds.length ||
       input.complementaryIds.includes(productId || "")
@@ -223,6 +232,14 @@ export class ShopService {
       } else {
         id = (await tx.product.create({ data })).id;
       }
+      const previous = (
+        await tx.productImage.findMany({
+          where: { productId: id },
+          select: { path: true },
+        })
+      ).map((im) => im.path);
+      const paths = images.map((im) => im.path);
+      await attachMedia(tx, paths, previous, actor);
       await tx.productCategory.deleteMany({ where: { productId: id } });
       await tx.productImage.deleteMany({ where: { productId: id } });
       await tx.sizeMeasurement.deleteMany({ where: { productId: id } });
@@ -241,6 +258,7 @@ export class ShopService {
             position,
           })),
         });
+      await detachMedia(tx, previous, paths);
       if (measurements.length)
         await tx.sizeMeasurement.createMany({
           data: measurements.map((m) => ({ ...m, productId: id! })),
