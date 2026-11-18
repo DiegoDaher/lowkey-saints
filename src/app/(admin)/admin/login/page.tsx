@@ -16,7 +16,7 @@ export default async function Login({
       {params.enlace && (
         <p role="alert" className="p-4 text-center">
           El enlace no es válido o expiró.{" "}
-          <Link href="/admin/recuperar">Solicita otro enlace.</Link>
+          <Link href="/140210/recuperar">Solicita otro enlace.</Link>
         </p>
       )}
       <AuthForm mode="login" />

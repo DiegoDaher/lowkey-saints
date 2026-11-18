@@ -87,7 +87,11 @@ export const productInput = z
           alt: z.string().max(200),
         })
       )
-      .max(12),
+      .max(12)
+      .refine(
+        (images) => new Set(images.map((im) => im.path)).size === images.length,
+        "Imagen repetida"
+      ),
     measurements: z.array(measurement).max(30),
     complementaryIds: z.array(id).max(3),
   })

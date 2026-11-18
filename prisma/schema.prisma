@@ -96,10 +96,40 @@ model ProductImage {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   path      String
+  asset     ProductMediaAsset @relation(fields: [path], references: [path], onDelete: Restrict)
   alt       String
   position  Int
 
   @@unique([productId, position])
+  @@index([path])
+}
+
+enum ProductMediaState {
+  UPLOADING
+  TEMPORARY
+  ATTACHED
+  DELETE_PENDING
+  DELETING
+  DELETED
+}
+
+model ProductMediaAsset {
+  id            String            @id @default(uuid())
+  path          String            @unique
+  createdBy     String?           @db.Uuid
+  state         ProductMediaState @default(UPLOADING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  expiresAt     DateTime?
+  availableAt   DateTime          @default(now())
+  attempts      Int               @default(0)
+  lockedAt      DateTime?
+  leaseToken    String?
+  lastError     String?
+  images        ProductImage[]
+
+  @@index([state, availableAt])
+  @@index([state, expiresAt])
 }
 
 model SizeMeasurement {

@@ -60,7 +60,7 @@ export default function AdminConsole({
           setRoles([]);
           setRole(null);
           window.location.replace(
-            error.status === 401 ? "/admin/login" : "/admin/sin-acceso"
+            error.status === 401 ? "/401" : "/140210/sin-acceso"
           );
         }
         throw error;
@@ -143,7 +143,7 @@ export default function AdminConsole({
           )
           .map((s) =>
             ["productos", "inventario", "ordenes"].includes(s) ? (
-              <Link key={s} href={"/admin/" + s} className="border px-4 py-3">
+              <Link key={s} href={"/140210/" + s} className="border px-4 py-3">
                 {s}
               </Link>
             ) : (

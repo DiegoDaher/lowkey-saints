@@ -65,5 +65,7 @@ export function adminPermission(
   if (route === "/v1/admin/roles" && ["GET", "PUT"].includes(method))
     return "roles";
   if (route === "/v1/admin/images" && method === "POST") return "images";
+  if (/^\/v1\/admin\/images\/[^/]+$/.test(route) && method === "DELETE")
+    return "images";
   return null;
 }

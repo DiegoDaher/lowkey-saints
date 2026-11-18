@@ -79,8 +79,8 @@ export default function AuthForm({
         className="underline"
         href={
           mode === "login" || mode === "reset"
-            ? "/admin/recuperar"
-            : "/admin/login"
+            ? "/140210/recuperar"
+            : "/140210/login"
         }
       >
         {mode === "login"

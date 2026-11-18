@@ -1,3 +1,5 @@
+import { productStorage } from "../_shared/storage/adapter.ts";
+import { uploadMedia, discardMedia } from "../_shared/storage/media.ts";
 import { availableOrderActions } from "../_shared/orders/domain/OrderStateValidator.ts";
 import { WhatsAppMessageSerializer } from "../_shared/orders/infra/WhatsAppMessageSerializer.ts";
 import { createClient } from "@supabase/supabase-js";
@@ -43,8 +45,7 @@ function decorate<T>(value: T): T {
     if (key === "images" && Array.isArray(val))
       return val.map((im) => ({
         ...im,
-        url:
-          supabaseUrl + "/storage/v1/object/public/product-images/" + im.path,
+        url: productStorage(auth).publicUrl(im.path),
       }));
     return val;
   });
@@ -288,7 +289,11 @@ export function createApiHandler(
       }
       if (route === "/v1/admin/products" && method === "POST")
         return json(
-          await shop.saveProduct(productInput.parse(await body(req))),
+          await shop.saveProduct(
+            productInput.parse(await body(req)),
+            undefined,
+            profile!.id
+          ),
           201
         );
       const productMatch = route.match(/^\/v1\/admin\/products\/([^/]+)$/);
@@ -309,7 +314,8 @@ export function createApiHandler(
         return json(
           await shop.saveProduct(
             productInput.parse(await body(req)),
-            id.parse(productMatch[1])
+            id.parse(productMatch[1]),
+            profile!.id
           )
         );
       if (productMatch && method === "PATCH") {
@@ -527,44 +533,22 @@ export function createApiHandler(
         const bytes = await readLimitedBody(
           req,
           IMAGE_BODY_LIMIT,
-          "Máximo 5 MB por imagen"
+          "Máximo 5 MiB por imagen"
         );
-        const file = bytes;
-        const type = req.headers.get("content-type");
-        const ext =
-          type === "image/jpeg"
-            ? "jpg"
-            : type === "image/png"
-              ? "png"
-              : type === "image/webp"
-                ? "webp"
-                : null;
-        const valid =
-          ext === "jpg"
-            ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-            : ext === "png"
-              ? [137, 80, 78, 71, 13, 10, 26, 10].every(
-                  (b, i) => bytes[i] === b
-                )
-              : ext === "webp"
-                ? new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" &&
-                  new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP"
-                : false;
-        if (!valid || !ext)
-          throw new AppError(400, "Usa una imagen JPG, PNG o WebP válida");
-        const path = crypto.randomUUID() + "." + ext;
-        const { error } = await auth.storage
-          .from("product-images")
-          .upload(path, file, { contentType: type!, upsert: false });
-        if (error) throw new AppError(502, "No se pudo subir la imagen");
         return json(
-          {
-            path,
-            url:
-              supabaseUrl + "/storage/v1/object/public/product-images/" + path,
-          },
+          await uploadMedia(
+            db,
+            productStorage(auth),
+            bytes,
+            req.headers.get("content-type"),
+            profile!.id
+          ),
           201
         );
+      }
+      if (/^\/v1\/admin\/images\/[^/]+$/.test(route) && method === "DELETE") {
+        await discardMedia(db, id.parse(route.split("/").pop()), profile!.id);
+        return json({ ok: true }, 202);
       }
       throw new AppError(404, "Ruta no encontrada");
     } catch (e) {

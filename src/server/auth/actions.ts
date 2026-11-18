@@ -39,14 +39,14 @@ export async function login(
   } catch {
     return { error: "El servicio no está disponible. Intenta de nuevo." };
   }
-  redirect("/admin");
+  redirect("/140210");
 }
 
 export async function logout() {
   const client = await supabaseServer();
   const { error } = await client.auth.signOut();
   if (error) throw new Error("No se pudo cerrar la sesión. Intenta de nuevo.");
-  redirect("/admin/login");
+  redirect("/140210/login");
 }
 
 export async function requestRecovery(
@@ -57,7 +57,7 @@ export async function requestRecovery(
   if (!validEmail(email)) return { error: "Escribe un correo válido." };
   try {
     const client = await supabaseServer();
-    // The recovery email template uses SiteURL + /admin/auth/confirm and TokenHash.
+    // The recovery email template uses SiteURL + /140210/auth/confirm and TokenHash.
     const { error } = await client.auth.resetPasswordForEmail(email);
     if (error && error.status && error.status >= 500)
       return { error: "El servicio no está disponible. Intenta de nuevo." };
@@ -99,5 +99,5 @@ export async function resetPassword(
   } catch {
     return { error: "El servicio no está disponible. Intenta de nuevo." };
   }
-  redirect("/admin/login?actualizada=1");
+  redirect("/140210/login?actualizada=1");
 }

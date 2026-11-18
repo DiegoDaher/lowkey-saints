@@ -58,6 +58,9 @@ function seedInventory() {
 }
 let inventory = seedInventory();
 let stockRequests = [];
+const media = new Map();
+let mediaRequests = [];
+let mediaDeletes = [];
 createServer(async (req, res) => {
   res.setHeader(
     "Access-Control-Allow-Origin",
@@ -67,17 +70,23 @@ createServer(async (req, res) => {
     "Access-Control-Allow-Headers",
     "authorization, apikey, content-type, x-client-info, x-supabase-api-version"
   );
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+  );
   res.setHeader("Content-Type", "application/json");
   if (req.method === "OPTIONS") {
     res.writeHead(204).end();
     return;
   }
   let body = {};
+  let rawBody = Buffer.alloc(0);
   if (["POST", "PUT", "PATCH"].includes(req.method)) {
     const parts = [];
     for await (const chunk of req) parts.push(chunk);
+    rawBody = Buffer.concat(parts);
     try {
-      body = JSON.parse(Buffer.concat(parts).toString());
+      body = JSON.parse(rawBody.toString());
     } catch {
       /* Empty logout body. */
     }
@@ -154,9 +163,14 @@ createServer(async (req, res) => {
   } else if (req.url === "/test/inventory/reset" && req.method === "POST") {
     inventory = seedInventory();
     stockRequests = [];
+    media.clear();
+    mediaRequests = [];
+    mediaDeletes = [];
     res.end("{}");
   } else if (req.url === "/test/inventory/state") {
-    res.end(JSON.stringify({ inventory, stockRequests }));
+    res.end(
+      JSON.stringify({ inventory, stockRequests, mediaRequests, mediaDeletes })
+    );
   } else if (req.url === "/test/inventory/conflict" && req.method === "POST") {
     inventory[1].variants[0].version++;
     res.end("{}");
@@ -176,7 +190,28 @@ createServer(async (req, res) => {
       fail(403, "No tienes permiso");
       return;
     }
-    if (path === "/admin/stock" && req.method === "PATCH") {
+    if (path === "/admin/images" && req.method === "POST") {
+      const id = crypto.randomUUID();
+      const path = id + ".webp";
+      const type = req.headers["content-type"];
+      media.set(path, { bytes: rawBody, type });
+      mediaRequests.push({ path, type, size: rawBody.length });
+      res
+        .writeHead(201)
+        .end(
+          JSON.stringify({
+            id,
+            path,
+            url:
+              "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
+              path,
+            expiresAt: new Date(Date.now() + 86400000).toISOString(),
+          })
+        );
+    } else if (path.startsWith("/admin/images/") && req.method === "DELETE") {
+      mediaDeletes.push(path.split("/").at(-1));
+      res.writeHead(202).end('{"ok":true}');
+    } else if (path === "/admin/stock" && req.method === "PATCH") {
       stockRequests.push(body);
       const variants = inventory.flatMap((p) => p.variants);
       if (
@@ -214,6 +249,14 @@ createServer(async (req, res) => {
         categories: [{ category: { id: categoryId, name: "Camisetas" } }],
         complements: [],
       };
+      p.images = (p.images || []).map((im, position) => ({
+        ...im,
+        id: im.path,
+        position,
+        url:
+          "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
+          im.path,
+      }));
       inventory.push(p);
       res.end(JSON.stringify(p));
     } else if (path.startsWith("/admin/products/")) {
@@ -228,6 +271,15 @@ createServer(async (req, res) => {
           return;
         }
         Object.assign(p, body, { version: p.version + 1 });
+        if (body.images)
+          p.images = body.images.map((im, position) => ({
+            ...im,
+            id: im.path,
+            position,
+            url:
+              "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
+              im.path,
+          }));
       }
       res.end(JSON.stringify(p));
     } else if (path === "/admin/variants" && req.method === "POST") {
@@ -282,6 +334,13 @@ createServer(async (req, res) => {
         ],
       })
     );
+  } else if (req.url.startsWith("/storage/v1/object/public/product-images/")) {
+    const object = media.get(req.url.split("/").at(-1));
+    if (!object) res.writeHead(404).end();
+    else {
+      res.setHeader("Content-Type", object.type);
+      res.end(object.bytes);
+    }
   } else if (req.url === "/health") {
     res.end("{}");
   } else {

@@ -47,7 +47,7 @@ En equipos con carga concurrente, ejecutar la suite secuencialmente con `node no
 
 ### Fuera de esta entrega
 
-ADM-04 y ADM-05 debajo conservan el roadmap original. Las operaciones actuales siguen en Edge Functions; no se migran a Prisma dentro de Server Actions ni se implementan nuevas pantallas financieras en ADM-01/02.
+ADM-05 debajo conserva el roadmap original. ADM-04 se documenta con su implementación actual. Las operaciones actuales siguen en Edge Functions; no se migran a Prisma dentro de Server Actions ni se implementan nuevas pantallas financieras en ADM-01/02.
 
 ### [ADM-03] Catálogo y matriz de inventario
 
@@ -63,13 +63,14 @@ ADM-04 y ADM-05 debajo conservan el roadmap original. Las operaciones actuales s
 - Validación: `tests/inventory.test.ts`, `tests/inventory.browser.spec.ts` y escenarios ADM-03 de `tests/integration.ts`, además de las regresiones de autenticación/pedidos.
 - Despliegue: publicar primero Edge Functions con los contratos compatibles, después Next.js. Verificar ambos roles en staging antes de producción. No requiere nuevas credenciales en Next.js.
 
-### [ADM-04] Carga Múltiple de Archivos (Multimedia de Producto)
+### [ADM-04] Carga múltiple de archivos
 
-- **Objetivo:** Subida de imágenes de producto a almacenamiento en la nube.
-- **Entregables:**
-  - Integración en `src/server/storage/` con Supabase Storage o Cloudinary.
-  - Drag and drop en UI de administración con compresión previa en cliente o generación de miniaturas.
-  - Persistencia de URLs públicas en la entidad `ProductImage` mediante Prisma.
+- Supabase Storage en `supabase/functions/_shared/storage/`, manteniendo Prisma y credenciales privilegiadas en Edge Functions.
+- Selección múltiple y drag and drop, compresión en cliente, estados por archivo y reintentos. Hasta 12 fotos; primera como portada.
+- `ProductImage` conserva ruta, texto alternativo y orden; la API deriva la URL pública. `ProductMediaAsset` registra temporales y coordina su limpieza con el guardado.
+- Solo ADMIN gestiona archivos. Los temporales caducan en 24 horas; quitar una foto vinculada requiere guardar el producto.
+- Limpieza asíncrona de archivos sin referencias e inventario de huérfanos históricos. Desactivada por defecto hasta verificar staging.
+- [Contratos, migración, operación y pruebas de ADM-04](../../../docs/adm-04-multimedia.md).
 
 ### [ADM-05] Financial Accounting y Análisis de Márgenes
 

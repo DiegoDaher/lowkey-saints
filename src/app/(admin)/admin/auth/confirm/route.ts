@@ -13,13 +13,13 @@ export async function GET(request: NextRequest) {
       });
       if (!error)
         return NextResponse.redirect(
-          new URL("/admin/restablecer", request.url)
+          new URL("/140210/restablecer", request.url)
         );
     } catch {
       /* Never expose verification details or tokens. */
     }
   }
   return NextResponse.redirect(
-    new URL("/admin/login?enlace=invalido", request.url)
+    new URL("/140210/login?enlace=invalido", request.url)
   );
 }

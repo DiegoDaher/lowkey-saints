@@ -1,7 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { redirect, unstable_rethrow } from "next/navigation";
+import { redirect, unauthorized, unstable_rethrow } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import {
   hasPermission,
@@ -65,12 +65,11 @@ export async function requireAdmin(permission: AdminPermission = "session") {
     profile = await getAdminProfile();
   } catch (error) {
     unstable_rethrow(error);
-    if (error instanceof ApiError && error.status === 401)
-      redirect("/admin/login");
+    if (error instanceof ApiError && error.status === 401) unauthorized();
     if (error instanceof ApiError && error.status === 403)
-      redirect("/admin/sin-acceso");
+      redirect("/140210/sin-acceso");
     throw new Error("No se pudo verificar el acceso. Intenta de nuevo.");
   }
-  if (!hasPermission(profile.role, permission)) redirect("/admin/sin-acceso");
+  if (!hasPermission(profile.role, permission)) redirect("/140210/sin-acceso");
   return profile;
 }

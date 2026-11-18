@@ -38,6 +38,7 @@ export default function CatalogWorkspace({
     page: 1,
   });
   const [draft, setDraft] = useState<StockDraft>({});
+  const [editorDirty, setEditorDirty] = useState(false);
   const [editing, setEditing] = useState<string | null | undefined>();
   const [variants, setVariants] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,7 +59,7 @@ export default function CatalogWorkspace({
         data: { session },
       } = await supabaseBrowser().auth.getSession();
       if (!session) {
-        window.location.replace("/admin/login");
+        window.location.replace("/401");
         throw new Error("Inicia sesión");
       }
       try {
@@ -66,7 +67,7 @@ export default function CatalogWorkspace({
       } catch (e) {
         if (e instanceof ApiError && [401, 403].includes(e.status))
           window.location.replace(
-            e.status === 401 ? "/admin/login" : "/admin/sin-acceso"
+            e.status === 401 ? "/401" : "/140210/sin-acceso"
           );
         throw e;
       }
@@ -159,6 +160,12 @@ export default function CatalogWorkspace({
   }, [count]);
 
   function guard(next: () => void) {
+    if (
+      editing !== undefined &&
+      editorDirty &&
+      !window.confirm("Hay cambios sin guardar. ¿Descartarlos?")
+    )
+      return;
     if (count) setPending(() => next);
     else next();
   }
@@ -171,7 +178,7 @@ export default function CatalogWorkspace({
     setConflict(result.status === 409);
     if ([401, 403].includes(result.status))
       window.location.replace(
-        result.status === 401 ? "/admin/login" : "/admin/sin-acceso"
+        result.status === 401 ? "/401" : "/140210/sin-acceso"
       );
   }
   async function save() {
@@ -253,22 +260,22 @@ export default function CatalogWorkspace({
         {mode === "productos" ? "Catálogo de productos" : "Inventario"}
       </h1>
       <nav aria-label="Administración" className="flex flex-wrap gap-5">
-        <Link href="/admin">Administración</Link>
+        <Link href="/140210">Administración</Link>
         {isAdmin && (
           <Link
-            href="/admin/productos"
+            href="/140210/productos"
             aria-current={mode === "productos" ? "page" : undefined}
           >
             productos
           </Link>
         )}
         <Link
-          href="/admin/inventario"
+          href="/140210/inventario"
           aria-current={mode === "inventario" ? "page" : undefined}
         >
           inventario
         </Link>
-        <Link href="/admin/ordenes">ordenes</Link>
+        <Link href="/140210/ordenes">ordenes</Link>
       </nav>
       <p role="alert">{error}</p>
       <p role="status">{message}</p>
@@ -349,10 +356,12 @@ export default function CatalogWorkspace({
               <button
                 className="shop-button"
                 disabled={busy}
-                onClick={() => {
-                  setEditing(null);
-                  setVariants(null);
-                }}
+                onClick={() =>
+                  guard(() => {
+                    setEditing(null);
+                    setVariants(null);
+                  })
+                }
               >
                 Nuevo producto
               </button>
@@ -362,8 +371,13 @@ export default function CatalogWorkspace({
                   product={listing.items.find((p) => p.id === editing) ?? null}
                   categories={categories}
                   call={editorCall}
-                  onClose={() => setEditing(undefined)}
+                  onDirtyChange={setEditorDirty}
+                  onClose={() => {
+                    setEditorDirty(false);
+                    setEditing(undefined);
+                  }}
                   onSaved={async () => {
+                    setEditorDirty(false);
                     setEditing(undefined);
                     await refresh();
                   }}
@@ -403,25 +417,29 @@ export default function CatalogWorkspace({
                           <div className="flex flex-wrap gap-3">
                             <button
                               disabled={busy}
-                              onClick={() => {
-                                setEditing(p.id);
-                                setVariants(null);
-                              }}
+                              onClick={() =>
+                                guard(() => {
+                                  setEditing(p.id);
+                                  setVariants(null);
+                                })
+                              }
                             >
                               Editar {p.name}
                             </button>
                             <button
                               disabled={busy}
-                              onClick={() => {
-                                setVariants(p.id);
-                                setEditing(undefined);
-                              }}
+                              onClick={() =>
+                                guard(() => {
+                                  setVariants(p.id);
+                                  setEditing(undefined);
+                                })
+                              }
                             >
                               Variantes de {p.name}
                             </button>
                             <button
                               disabled={busy}
-                              onClick={() => void archive(p)}
+                              onClick={() => guard(() => void archive(p))}
                             >
                               {p.isArchived ? "Restaurar" : "Archivar"} {p.name}
                             </button>

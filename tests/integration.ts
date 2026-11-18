@@ -1,3 +1,4 @@
+import { mediaIntegration } from "./media-integration.ts";
 import { PrismaClient } from "../supabase/functions/_shared/generated/prisma/client.ts";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ShopService } from "../supabase/functions/_shared/service.ts";
@@ -587,6 +588,7 @@ Deno.test({
         ["/roles", "GET"],
         ["/roles", "PUT"],
         ["/images", "POST"],
+        ["/images/" + crypto.randomUUID(), "DELETE"],
         ["/health", "GET"],
       ];
       for (const [path, method] of restricted) {
@@ -847,6 +849,7 @@ Deno.test({
         ).status === 404,
         "missing order mutation"
       );
+      await mediaIntegration(db);
       console.log("Integration assertions passed");
     } finally {
       await db.$disconnect();

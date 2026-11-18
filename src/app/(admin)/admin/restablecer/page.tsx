@@ -11,7 +11,7 @@ export default async function ResetPage() {
     return (
       <main className="space-y-4 p-8">
         <p>El enlace no es válido o expiró.</p>
-        <Link href="/admin/recuperar">Solicitar otro enlace</Link>
+        <Link href="/140210/recuperar">Solicitar otro enlace</Link>
       </main>
     );
   return <AuthForm mode="reset" />;

@@ -1,7 +1,7 @@
 "use client";
 import Loader from "@/components/ui/Loader";
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import ProductMediaEditor from "./ProductMediaEditor";
 import { ApiError } from "@/lib/api";
 import { productInput } from "../../../supabase/functions/_shared/contracts";
 import type {
@@ -15,12 +15,14 @@ export default function ProductEditor({
   call,
   onClose,
   onSaved,
+  onDirtyChange,
 }: {
   product: CatalogProduct | null;
   categories: { id: string; name: string }[];
   call: Call;
   onClose: () => void;
   onSaved: () => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [images, setImages] = useState(
     p?.images.map((i) => ({ path: i.path, alt: i.alt, url: i.url })) || []
@@ -33,6 +35,41 @@ export default function ProductEditor({
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [unresolved, setUnresolved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const saved = useRef(false);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    if (!dirty) return;
+    const unload = (event: BeforeUnloadEvent) => {
+      if (!saved.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const navigate = (event: MouseEvent) => {
+      const anchor = (event.target as Element).closest("a[href]");
+      if (
+        !saved.current &&
+        anchor &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        anchor.getAttribute("target") !== "_blank" &&
+        !window.confirm("Hay cambios sin guardar. ¿Descartarlos?")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", unload);
+    document.addEventListener("click", navigate, true);
+    return () => {
+      window.removeEventListener("beforeunload", unload);
+      document.removeEventListener("click", navigate, true);
+    };
+  }, [dirty]);
   const [searchLoading, setSearchLoading] = useState(true);
   const [complementsLoading, setComplementsLoading] = useState(Boolean(p));
   const [error, setError] = useState("");
@@ -77,60 +114,20 @@ export default function ProductEditor({
       });
     return () => controller.abort();
   }, [call, p]);
-  async function upload(files: FileList | null) {
-    if (!files || busy) return;
-    if (images.length + files.length > 12) {
-      setError("Máximo 12 fotografías");
-      return;
-    }
-    setBusy(true);
-    setUploading(true);
-    setError("");
-    try {
-      for (const file of Array.from(files)) {
-        if (
-          !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
-          file.size > 15 * 1024 * 1024
-        )
-          throw new Error("Usa imágenes JPG, PNG o WebP de hasta 15 MB");
-        const bitmap = await createImageBitmap(file);
-        const canvas = document.createElement("canvas");
-        const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-        canvas.width = Math.round(bitmap.width * scale);
-        canvas.height = Math.round(bitmap.height * scale);
-        canvas
-          .getContext("2d")!
-          .drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        bitmap.close();
-        const blob = await new Promise<Blob>((resolve, reject) =>
-          canvas.toBlob(
-            (b) =>
-              b
-                ? resolve(b)
-                : reject(new Error("No se pudo procesar la imagen")),
-            "image/webp",
-            0.85
-          )
-        );
-        const im = await call<{ path: string; url: string }>("/admin/images", {
-          method: "POST",
-          headers: { "Content-Type": "image/webp" },
-          body: blob,
-        });
-        setImages((old) => [...old, { ...im, alt: p?.name || file.name }]);
-      }
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-      setUploading(false);
-    }
-  }
   return (
     <section className="space-y-5 border bg-stone-50 p-6">
       <div className="flex justify-between">
         <h2 className="text-2xl">{p ? "Editar producto" : "Nuevo producto"}</h2>
-        <button onClick={onClose} disabled={busy}>
+        <button
+          onClick={() => {
+            if (
+              !dirty ||
+              window.confirm("Hay cambios sin guardar. ¿Descartarlos?")
+            )
+              onClose();
+          }}
+          disabled={busy || uploading}
+        >
           Cerrar
         </button>
       </div>
@@ -153,8 +150,10 @@ export default function ProductEditor({
       )}
       <form
         className="space-y-4"
+        onChange={() => setDirty(true)}
         onSubmit={async (e) => {
           e.preventDefault();
+          if (busy || uploading || unresolved) return;
           const f = new FormData(e.currentTarget);
           setBusy(true);
           setError("");
@@ -198,6 +197,8 @@ export default function ProductEditor({
               method: p ? "PUT" : "POST",
               body: JSON.stringify(input),
             });
+            saved.current = true;
+            setDirty(false);
             await onSaved();
           } catch (e) {
             setError((e as Error).message);
@@ -284,78 +285,21 @@ export default function ProductEditor({
               ))}
             </div>
           </fieldset>
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              void upload(e.dataTransfer.files);
+          <ProductMediaEditor
+            initialImages={images}
+            name={p?.name || ""}
+            call={call}
+            disabled={busy || complementsLoading}
+            onChange={(next) => {
+              setImages(next);
+              setDirty(true);
             }}
-            className="border border-dashed p-4"
-          >
-            <label>
-              Fotografías: selecciona o arrastra archivos
-              <input
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/webp"
-                disabled={busy || images.length >= 12}
-                onChange={(e) => void upload(e.target.files)}
-              />
-            </label>
-            {uploading && (
-              <Loader variant="inline" label="Subiendo imágenes…" />
-            )}
-            <p>Máximo 12. La primera imagen será la portada.</p>
-            <small role="alert">{fieldErrors.images}</small>
-            <div className="flex flex-wrap gap-4">
-              {images.map((im, i) => (
-                <div className="w-36 space-y-2" key={im.path}>
-                  <div className="relative h-40">
-                    <Image
-                      unoptimized
-                      fill
-                      className="object-cover"
-                      src={im.url}
-                      alt={im.alt}
-                    />
-                  </div>
-                  <input
-                    aria-label="Descripción de la foto"
-                    value={im.alt}
-                    onChange={(e) =>
-                      setImages((old) =>
-                        old.map((v, n) =>
-                          n === i ? { ...v, alt: e.target.value } : v
-                        )
-                      )
-                    }
-                  />
-                  <button
-                    type="button"
-                    disabled={i === 0}
-                    onClick={() =>
-                      setImages((old) => {
-                        const next = [...old];
-                        [next[i - 1], next[i]] = [next[i], next[i - 1]];
-                        return next;
-                      })
-                    }
-                  >
-                    ← Mover
-                  </button>
-                  <button
-                    type="button"
-                    className="ml-2 underline"
-                    onClick={() =>
-                      setImages((old) => old.filter((_, n) => n !== i))
-                    }
-                  >
-                    Quitar
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+            onState={(active, pending) => {
+              setUploading(active);
+              setUnresolved(pending);
+            }}
+          />
+          <small role="alert">{fieldErrors.images}</small>
           <fieldset>
             <legend>Medidas por talla (cm)</legend>
             <small role="alert">{fieldErrors.measurements}</small>
@@ -463,7 +407,7 @@ export default function ProductEditor({
               ))}
           </fieldset>
           <button
-            disabled={busy || complementsLoading}
+            disabled={busy || uploading || unresolved || complementsLoading}
             aria-busy={busy}
             className="shop-button"
           >

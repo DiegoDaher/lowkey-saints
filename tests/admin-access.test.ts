@@ -26,6 +26,7 @@ const routes = [
   ["GET", "/roles", false],
   ["PUT", "/roles", false],
   ["POST", "/images", false],
+  ["DELETE", "/images/id", false],
 ] as const;
 test("all administrative operations have explicit role permissions", () => {
   for (const [method, path, operator] of routes) {
