@@ -28,6 +28,8 @@ function cli(args) {
   if (result.status !== 0) throw new Error("Supabase command failed");
 }
 const secrets = {
+  MEDIA_CLEANUP_ENABLED:
+    process.env.MEDIA_CLEANUP_ENABLED === "true" ? "true" : "false",
   APP_DATABASE_URL: process.env.APP_DATABASE_URL,
   WHATSAPP_PHONE: process.env.WHATSAPP_PHONE,
   RESEND_API_KEY: process.env.RESEND_API_KEY,

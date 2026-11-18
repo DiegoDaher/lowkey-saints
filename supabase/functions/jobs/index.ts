@@ -1,3 +1,6 @@
+import { createClient } from "@supabase/supabase-js";
+import { cleanMedia } from "../_shared/storage/media.ts";
+import { productStorage } from "../_shared/storage/adapter.ts";
 import { db } from "../_shared/db.ts";
 import { ShopService } from "../_shared/service.ts";
 import { deliverNotifications } from "../_shared/notifications.ts";
@@ -31,15 +34,31 @@ Deno.serve(async (req) => {
       apiKey && from && siteUrl?.startsWith("https://")
         ? await deliverNotifications(db, { apiKey, from, siteUrl })
         : null;
+    let media = null;
+    if (Deno.env.get("MEDIA_CLEANUP_ENABLED") === "true") {
+      try {
+        const storage = productStorage(
+          createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            { auth: { persistSession: false, autoRefreshToken: false } }
+          )
+        );
+        media = await cleanMedia(db, storage);
+      } catch {
+        console.error("media.cleanup.failed");
+      }
+    }
     console.log(
       JSON.stringify({
         event: "jobs.completed",
         expired,
+        media,
         sent,
         mailConfigured: sent !== null,
       })
     );
-    return Response.json({ expired, sent });
+    return Response.json({ expired, sent, media });
   } catch (e) {
     console.error("jobs.failed", e instanceof Error ? e.name : "unknown");
     return Response.json({ error: "Job failed" }, { status: 500 });

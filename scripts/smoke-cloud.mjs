@@ -31,7 +31,7 @@ async function request(path, method = "GET", data, token) {
 }
 try {
   const sessions = {};
-  for (const role of ["ADMIN", "STAFF", "NONE"]) {
+  for (const role of ["ADMIN", "OPERATOR", "NONE"]) {
     const email = "lowkey-smoke-" + randomUUID() + "@example.com";
     const password = randomBytes(24).toString("base64url") + "aA1!";
     const { data, error } = await auth.auth.admin.createUser({
@@ -60,7 +60,7 @@ try {
     403
   );
   assert.equal(
-    (await request("/admin/finances", "GET", undefined, sessions.STAFF)).status,
+    (await request("/admin/finances", "GET", undefined, sessions.OPERATOR)).status,
     403
   );
   const categories = await request("/categories");
@@ -84,7 +84,7 @@ try {
       measurements: [],
       complementaryIds: [],
     },
-    sessions.STAFF
+    sessions.ADMIN
   );
   assert.equal(product.status, 201, JSON.stringify(product.body));
   products.push(product.body.id);
@@ -98,7 +98,7 @@ try {
       colorHex: "#000000",
       sku: slug,
     },
-    sessions.STAFF
+    sessions.ADMIN
   );
   assert.equal(variant.status, 201);
   variantId = variant.body.id;
@@ -108,7 +108,7 @@ try {
         "/admin/stock",
         "PATCH",
         { changes: [{ id: variantId, version: 0, stock: 2 }] },
-        sessions.STAFF
+        sessions.OPERATOR
       )
     ).status,
     200
@@ -150,7 +150,7 @@ try {
         "/admin/orders/" + order.body.id,
         "PATCH",
         { status: "CONFIRMED" },
-        sessions.STAFF
+        sessions.OPERATOR
       )
     ).status,
     200
@@ -161,7 +161,7 @@ try {
         "/admin/orders/" + order.body.id,
         "PATCH",
         { status: "CANCELLED" },
-        sessions.STAFF
+        sessions.OPERATOR
       )
     ).status,
     409
@@ -172,12 +172,12 @@ try {
         "/admin/orders/" + order.body.id,
         "PATCH",
         { status: "SHIPPED" },
-        sessions.STAFF
+        sessions.OPERATOR
       )
     ).status,
     200
   );
-  for (const token of [undefined, sessions.STAFF]) {
+  for (const token of [undefined, sessions.OPERATOR]) {
     const response = await fetch(url + "/rest/v1/ProductCost?select=*", {
       headers: {
         apikey: key,
@@ -190,7 +190,7 @@ try {
     );
   }
   console.log(
-    "Cloud smoke passed: anonymous/unassigned/STAFF/ADMIN, catalog, costs, order idempotency and state machine"
+    "Cloud smoke passed: anonymous/unassigned/OPERATOR/ADMIN, catalog, costs, order idempotency and state machine"
   );
 } finally {
   // Delete only IDs created by this test, preserving every pre-existing row.

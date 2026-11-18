@@ -1,14 +1,11 @@
 "use client";
 import Loader from "@/components/ui/Loader";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { statusLabel } from "@/lib/status-label";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
-import ProductEditor from "./ProductEditor";
-type Role = { id: string; role: "ADMIN" | "STAFF"; active: boolean };
+import type { AdminProfile as Role } from "../../../supabase/functions/_shared/admin-access";
 type Finance = {
   id: string;
   name: string;
@@ -35,30 +32,39 @@ const sections = [
   "finanzas",
   "roles",
 ] as const;
-export default function AdminConsole() {
-  const router = useRouter();
-  const [role, setRole] = useState<Role | null>(null);
-  const [tab, setTab] = useState<string>("productos");
+export default function AdminConsole({
+  initialProfile,
+}: {
+  initialProfile: Role;
+}) {
+  const [role, setRole] = useState<Role | null>(initialProfile);
+  const [tab, setTab] = useState<string>("inicio");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const request = useRef<AbortController | null>(null);
   const [page, setPage] = useState(1);
-  const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [finances, setFinances] = useState<Finance[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
-    []
-  );
-  const [editing, setEditing] = useState<CatalogProduct | null | undefined>(
-    undefined
-  );
   const call = useCallback(
     async <T,>(path: string, options: RequestInit = {}) => {
       const { data } = await supabaseBrowser().auth.getSession();
-      if (!data.session) throw new Error("Inicia sesión de nuevo");
-      return api<T>(path, options, data.session.access_token);
+      try {
+        if (!data.session) throw new ApiError(401, "Inicia sesión de nuevo");
+        return await api<T>(path, options, data.session.access_token);
+      } catch (error) {
+        if (error instanceof ApiError && [401, 403].includes(error.status)) {
+          setSubs([]);
+          setFinances([]);
+          setRoles([]);
+          setRole(null);
+          window.location.replace(
+            error.status === 401 ? "/401" : "/140210/sin-acceso"
+          );
+        }
+        throw error;
+      }
     },
     []
   );
@@ -73,20 +79,12 @@ export default function AdminConsole() {
       if (controller.signal.aborted) return;
       setRole(me);
       setError("");
-      if ((tab === "finanzas" || tab === "roles") && me.role !== "ADMIN")
-        throw new Error("Esta sección requiere ADMIN");
-      if (tab === "productos" || tab === "inventario") {
-        const result = await call<{ items: CatalogProduct[] }>(
-          "/admin/products?page=" + page,
-          options
-        );
-        const nextCategories = await api<{ id: string; name: string }[]>(
-          "/categories",
-          options
-        );
-        if (controller.signal.aborted) return;
-        setProducts(result.items);
-        setCategories(nextCategories);
+      if (tab !== "inicio" && me.role !== "ADMIN") {
+        setFinances([]);
+        setRoles([]);
+        setSubs([]);
+        setTab("inicio");
+        return;
       }
       if (tab === "restock") {
         const rows = await call<Subscription[]>(
@@ -136,23 +134,16 @@ export default function AdminConsole() {
     <main className="admin-form mx-auto w-full max-w-7xl space-y-7 p-6 md:p-10">
       <div className="flex flex-wrap justify-between gap-4">
         <h1 className="font-display text-4xl">Administración</h1>
-        <button
-          onClick={async () => {
-            await supabaseBrowser().auth.signOut();
-            router.replace("/admin/login");
-          }}
-        >
-          Cerrar sesión
-        </button>
       </div>
       <nav className="flex flex-wrap gap-3" aria-label="Administración">
         {sections
           .filter(
-            (s) => role?.role === "ADMIN" || !["finanzas", "roles"].includes(s)
+            (s) =>
+              role?.role === "ADMIN" || ["inventario", "ordenes"].includes(s)
           )
           .map((s) =>
-            s === "ordenes" ? (
-              <Link key={s} href="/admin/ordenes" className="border px-4 py-3">
+            ["productos", "inventario", "ordenes"].includes(s) ? (
+              <Link key={s} href={"/140210/" + s} className="border px-4 py-3">
                 {s}
               </Link>
             ) : (
@@ -164,7 +155,6 @@ export default function AdminConsole() {
                 onClick={() => {
                   setTab(s);
                   setPage(1);
-                  setEditing(undefined);
                 }}
               >
                 {s}
@@ -176,207 +166,10 @@ export default function AdminConsole() {
       {busy && <Loader variant="inline" label="Procesando…" />}
       {loading && <Loader label="Cargando administración…" />}
       <div hidden={loading} aria-busy={busy} className="space-y-7">
-        {tab === "productos" && (
-          <>
-            <button className="shop-button" onClick={() => setEditing(null)}>
-              Nuevo producto
-            </button>
-            {editing !== undefined && (
-              <ProductEditor
-                key={editing?.id || "new"}
-                product={editing}
-                categories={categories}
-                call={call}
-                onClose={() => setEditing(undefined)}
-                onSaved={async () => {
-                  setEditing(undefined);
-                  await load();
-                }}
-              />
-            )}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Precio</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        {p.name}
-                        <p className="text-sm">
-                          {p.categories.map((c) => c.category.name).join(", ")}
-                        </p>
-                      </td>
-                      <td>$ {p.salePrice}</td>
-                      <td>{p.isArchived ? "Archivado" : "Activo"}</td>
-                      <td>
-                        <button
-                          className="underline"
-                          onClick={() => setEditing(p)}
-                        >
-                          Editar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+        {tab === "inicio" && (
+          <p>Selecciona una sección para administrar la tienda.</p>
         )}
-        {tab === "inventario" &&
-          products.map((p) => (
-            <section className="space-y-4 border p-4" key={p.id}>
-              <h2 className="text-xl">{p.name}</h2>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = new FormData(e.currentTarget);
-                  await act("/admin/stock", "PATCH", {
-                    changes: p.variants.map((v) => ({
-                      id: v.id,
-                      version: v.version,
-                      stock: Number(form.get(v.id)),
-                    })),
-                  });
-                }}
-              >
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th>Talla / color</th>
-                        {[...new Set(p.variants.map((v) => v.color))].map(
-                          (c) => (
-                            <th key={c}>{c}</th>
-                          )
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...new Set(p.variants.map((v) => v.size))].map(
-                        (size) => (
-                          <tr key={size}>
-                            <th>{size}</th>
-                            {[...new Set(p.variants.map((v) => v.color))].map(
-                              (color) => {
-                                const v = p.variants.find(
-                                  (v) => v.size === size && v.color === color
-                                );
-                                return (
-                                  <td key={color}>
-                                    {v ? (
-                                      <>
-                                        <input
-                                          key={v.version}
-                                          aria-label={size + " " + color}
-                                          type="number"
-                                          min="0"
-                                          max="100000"
-                                          name={v.id}
-                                          defaultValue={v.stock}
-                                          required
-                                        />
-                                        <small>
-                                          {v.sku}{" "}
-                                          {v.isArchived ? "(archivada)" : ""}
-                                        </small>
-                                        <button
-                                          type="button"
-                                          className="ml-2 underline"
-                                          disabled={busy || loading}
-                                          onClick={() =>
-                                            act(
-                                              "/admin/variants/" + v.id,
-                                              "PATCH",
-                                              {
-                                                version: v.version,
-                                                isArchived: !v.isArchived,
-                                              }
-                                            )
-                                          }
-                                        >
-                                          {v.isArchived
-                                            ? "Activar"
-                                            : "Archivar"}
-                                        </button>
-                                      </>
-                                    ) : (
-                                      "—"
-                                    )}
-                                  </td>
-                                );
-                              }
-                            )}
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {p.variants.length > 0 && (
-                  <button
-                    disabled={busy || loading}
-                    className="shop-button mt-3"
-                  >
-                    Guardar existencias
-                  </button>
-                )}
-              </form>
-              <details>
-                <summary>Agregar variante</summary>
-                <form
-                  className="mt-4 grid gap-3 md:grid-cols-4"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget;
-                    const data = new FormData(form);
-                    if (
-                      await act("/admin/variants", "POST", {
-                        productId: p.id,
-                        size: data.get("size"),
-                        color: data.get("color"),
-                        colorHex: data.get("colorHex"),
-                        sku: data.get("sku"),
-                      })
-                    )
-                      form.reset();
-                  }}
-                >
-                  <label>
-                    Talla
-                    <input name="size" required />
-                  </label>
-                  <label>
-                    Color
-                    <input name="color" required />
-                  </label>
-                  <label>
-                    Color visual
-                    <input
-                      name="colorHex"
-                      type="color"
-                      defaultValue="#222222"
-                    />
-                  </label>
-                  <label>
-                    SKU
-                    <input name="sku" required />
-                  </label>
-                  <button disabled={busy || loading} className="shop-button">
-                    Agregar
-                  </button>
-                </form>
-              </details>
-            </section>
-          ))}
-        {tab === "restock" && (
+        {role?.role === "ADMIN" && tab === "restock" && (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -411,7 +204,7 @@ export default function AdminConsole() {
             </table>
           </div>
         )}
-        {tab === "finanzas" && (
+        {role?.role === "ADMIN" && tab === "finanzas" && (
           <div className="space-y-4">
             <p>
               Utilidad bruta = precio − costo. Los productos sin costo no tienen
@@ -467,7 +260,7 @@ export default function AdminConsole() {
             ))}
           </div>
         )}
-        {tab === "roles" && (
+        {role?.role === "ADMIN" && tab === "roles" && (
           <>
             <p>
               El usuario debe existir en Supabase Auth. No puedes modificar tu
@@ -492,7 +285,7 @@ export default function AdminConsole() {
               <label>
                 Rol
                 <select name="role">
-                  <option>STAFF</option>
+                  <option>OPERATOR</option>
                   <option>ADMIN</option>
                 </select>
               </label>
@@ -512,7 +305,7 @@ export default function AdminConsole() {
             </ul>
           </>
         )}
-        {tab !== "roles" && (
+        {tab !== "roles" && tab !== "inicio" && (
           <div className="flex gap-5">
             <button
               disabled={page === 1 || busy || loading}

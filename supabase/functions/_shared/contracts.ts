@@ -50,7 +50,12 @@ export const stockInput = z
         })
       )
       .min(1)
-      .max(100),
+      .max(100)
+      .refine(
+        (changes) =>
+          new Set(changes.map((change) => change.id)).size === changes.length,
+        "Variante repetida"
+      ),
   })
   .strict();
 const measurement = z.object({
@@ -82,7 +87,11 @@ export const productInput = z
           alt: z.string().max(200),
         })
       )
-      .max(12),
+      .max(12)
+      .refine(
+        (images) => new Set(images.map((im) => im.path)).size === images.length,
+        "Imagen repetida"
+      ),
     measurements: z.array(measurement).max(30),
     complementaryIds: z.array(id).max(3),
   })
@@ -101,6 +110,20 @@ export const statusInput = z
   .strict();
 export type CreateOrderInput = z.infer<typeof orderInput>;
 export type ProductInput = z.infer<typeof productInput>;
+export const archiveInput = z
+  .object({
+    version: z.number().int().nonnegative(),
+    isArchived: z.boolean(),
+  })
+  .strict();
+export const variantUpdateInput = variantInput
+  .omit({ productId: true })
+  .partial()
+  .extend({
+    version: z.number().int().nonnegative(),
+    isArchived: z.boolean().optional(),
+  })
+  .strict();
 export interface CatalogProduct {
   id: string;
   name: string;

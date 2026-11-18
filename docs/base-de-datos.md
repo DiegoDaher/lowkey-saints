@@ -16,7 +16,7 @@ El esquema está en prisma/schema.prisma; el único historial SQL está en prism
 - Pendiente puede confirmarse o cancelarse; confirmado puede enviarse. Un pendiente vencido no puede pagarse. Cancelación y expiración restituyen stock una sola vez.
 - Ajustar inventario requiere la versión que se leyó; una edición desactualizada devuelve 409.
 - SKU único, producto/talla/color único; archivo lógico de productos y variantes conserva pedidos históricos.
-- ADMIN administra costos y roles. STAFF administra catálogo, precios de venta, inventario, pedidos y reposición. Nadie puede modificar su propio rol desde el panel.
+- ADMIN administra catálogo, imágenes, precios, costos, roles y operaciones. OPERATOR consulta catálogo, ajusta existencias y opera pedidos. Nadie puede modificar su propio rol desde el panel.
 - Costos se almacenan en ProductCost. El catálogo nunca los selecciona. Utilidad = venta menos costo; porcentaje no aplicable cuando venta es cero.
 
 ## Seguridad
@@ -118,3 +118,7 @@ Las pruebas de integración crean una base PostgreSQL local con nombre aleatorio
 | BD-27 | ADMIN/STAFF, RLS y autorización por operación        | Pruebas SQL y smoke cloud                                 |
 
 Esta matriz distingue implementación de activación: configurar el proveedor de correo sigue siendo necesario para enviar avisos reales. La cuenta ADMIN está activa y verificada. La publicación del frontend está fuera de esta entrega.
+
+## Actualización ADM-04
+
+La migración `202611180001_product_media` añade `ProductMediaAsset`, backfill de rutas referenciadas, FK desde `ProductImage.path` y RLS forzada. Se conserva la ruta como dato canónico y la URL pública derivada. `POST /admin/images` agrega `id` y `expiresAt`; `DELETE /admin/images/:id` descarta un temporal propio. Ambos requieren ADMIN. La limpieza de jobs está controlada por `MEDIA_CLEANUP_ENABLED=false` hasta completar la validación. Ver [contratos y despliegue de ADM-04](adm-04-multimedia.md).

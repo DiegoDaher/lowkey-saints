@@ -1,6 +1,6 @@
 import "dotenv/config";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
 import sharp from "sharp";
@@ -52,9 +52,16 @@ const storage = apply
       }
     ).storage.from("product-images")
   : null;
+const registry = apply
+  ? new pg.Client({
+      ...postgresTlsConfig(process.env.DIRECT_URL),
+      connectionTimeoutMillis: 15000,
+    })
+  : null;
 let transaction = false;
 try {
   await db.connect();
+  if (registry) await registry.connect();
   await db.query(apply ? "BEGIN" : "BEGIN READ ONLY");
   transaction = true;
   if (apply)
@@ -123,7 +130,33 @@ try {
     ).rows;
     assert.equal(collisions.length, 0, `SKU collision for ${p.slug}`);
     if (!apply) continue;
-    for (const im of p.images) {
+    for (const im of [...p.images].sort((a, b) =>
+      a.path.localeCompare(b.path)
+    )) {
+      // Commit the reservation separately so a failed import remains discoverable.
+      if (
+        !(
+          await registry.query(
+            'SELECT id FROM "ProductMediaAsset" WHERE path=$1',
+            [im.path]
+          )
+        ).rowCount
+      )
+        await registry.query(
+          `INSERT INTO "ProductMediaAsset" (id,path,state,"expiresAt")
+        VALUES ($1,$2,'UPLOADING',now() + interval '24 hours') ON CONFLICT (path) DO NOTHING`,
+          [randomUUID(), im.path]
+        );
+      const asset = (
+        await db.query(
+          'SELECT state FROM "ProductMediaAsset" WHERE path=$1 FOR UPDATE',
+          [im.path]
+        )
+      ).rows[0];
+      assert(
+        ["UPLOADING", "TEMPORARY", "ATTACHED"].includes(asset.state),
+        `Media unavailable: ${im.path}; do not resurrect a deletion candidate`
+      );
       const { error } = await storage.upload(im.path, im.bytes, {
         contentType: "image/webp",
         upsert: false,
@@ -157,6 +190,12 @@ try {
       [p.id, category.id]
     );
     for (const [position, im] of p.images.entries()) {
+      await db.query(
+        'UPDATE "ProductMediaAsset" SET state=' +
+          "'ATTACHED'" +
+          ',"expiresAt"=NULL,"updatedAt"=now() WHERE path=$1',
+        [im.path]
+      );
       await db.query(
         'INSERT INTO "ProductImage" (id,"productId",path,alt,position) VALUES ($1,$2,$3,$4,$5)',
         [
@@ -244,4 +283,5 @@ try {
   process.exitCode = 1;
 } finally {
   await db.end();
+  if (registry) await registry.end();
 }
