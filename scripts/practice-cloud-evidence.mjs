@@ -116,7 +116,7 @@ try {
   } finally {
     await appDb.end();
   }
-  for (const role of ["ADMIN", "STAFF"]) {
+  for (const role of ["ADMIN", "OPERATOR"]) {
     const email = "practice-" + randomUUID() + "@example.invalid";
     const password = randomBytes(24).toString("base64url");
     const created = await auth.auth.admin.createUser({

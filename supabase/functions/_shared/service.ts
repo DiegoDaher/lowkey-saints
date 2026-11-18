@@ -132,8 +132,14 @@ export class ShopService {
       for (const c of [...changes].sort((a, b) => a.id.localeCompare(b.id))) {
         const before = await tx.productVariant.findUnique({
           where: { id: c.id },
+          include: { product: { select: { isArchived: true } } },
         });
         if (!before) throw new AppError(404, "Variante no encontrada");
+        if (before.isArchived || before.product.isArchived)
+          throw new AppError(
+            409,
+            "El producto o la variante está archivado; recarga la vista"
+          );
         const result = await tx.productVariant.updateMany({
           where: { id: c.id, version: c.version },
           data: { stock: c.stock, version: { increment: 1 } },

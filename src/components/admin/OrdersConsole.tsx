@@ -34,8 +34,18 @@ const date = (value: string) =>
 
 async function call<T>(path: string, options: RequestInit = {}) {
   const { data } = await supabaseBrowser().auth.getSession();
-  if (!data.session) throw new ApiError(401, "Inicia sesión de nuevo");
-  return api<T>(path, options, data.session.access_token);
+  try {
+    if (!data.session) throw new ApiError(401, "Inicia sesión de nuevo");
+    return await api<T>(path, options, data.session.access_token);
+  } catch (error) {
+    if (error instanceof ApiError && [401, 403].includes(error.status)) {
+      window.dispatchEvent(new Event("admin-access-lost"));
+      window.location.replace(
+        error.status === 401 ? "/admin/login" : "/admin/sin-acceso"
+      );
+    }
+    throw error;
+  }
 }
 
 function History({ orderId, revision }: { orderId: string; revision: number }) {
@@ -89,6 +99,12 @@ function History({ orderId, revision }: { orderId: string; revision: number }) {
 }
 
 export default function OrdersConsole() {
+  const [accessLost, setAccessLost] = useState(false);
+  useEffect(() => {
+    const clear = () => setAccessLost(true);
+    window.addEventListener("admin-access-lost", clear);
+    return () => window.removeEventListener("admin-access-lost", clear);
+  }, []);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [filter, setFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -175,6 +191,8 @@ export default function OrdersConsole() {
     }
   }
 
+  if (accessLost)
+    return <p role="alert">Tu acceso cambió. Verificando permisos…</p>;
   return (
     <main className="admin-form mx-auto w-full max-w-7xl space-y-6 p-6 md:p-10">
       <Link href="/admin" className="underline">

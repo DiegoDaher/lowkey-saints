@@ -60,7 +60,7 @@ test("manual transitions, history, conflicts, filter and pagination", async ({
     let value: unknown = [];
     let status = 200;
     if (url.pathname.endsWith("/admin/me"))
-      value = { id, role: "STAFF", active: true };
+      value = { id, role: "OPERATOR", active: true };
     else if (url.pathname.endsWith("/admin/products")) value = { items: [] };
     else if (url.pathname.endsWith("/history"))
       value = [
