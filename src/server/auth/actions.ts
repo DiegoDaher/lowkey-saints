@@ -58,8 +58,14 @@ export async function requestRecovery(
   if (!validEmail(email)) return { error: "Escribe un correo válido." };
   try {
     const client = await supabaseServer();
-    // The recovery email template uses SiteURL + /140210/auth/confirm and TokenHash.
-    const { error } = await client.auth.resetPasswordForEmail(email);
+    // Use a trusted deployment URL, never a destination submitted by the form.
+    // The default template returns a PKCE code; custom templates use TokenHash.
+    const siteUrl = process.env.SITE_URL;
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      ...(siteUrl && {
+        redirectTo: new URL("/140210/auth/confirm", siteUrl).toString(),
+      }),
+    });
     if (error && error.status && error.status >= 500)
       return { error: "El servicio no está disponible. Intenta de nuevo." };
   } catch {
@@ -67,7 +73,7 @@ export async function requestRecovery(
   }
   return {
     message:
-      "Si existe una cuenta con ese correo, recibirás instrucciones para restablecer tu contraseña. Revisa tu bandeja o intenta más tarde.",
+      "Si existe una cuenta con ese correo, recibirás instrucciones para restablecer tu contraseña. Abre el enlace en este mismo navegador. Revisa tu bandeja o intenta más tarde.",
   };
 }
 

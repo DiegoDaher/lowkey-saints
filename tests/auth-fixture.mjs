@@ -1,5 +1,6 @@
 // Local browser-test Auth stub. Never used by the application or deployment.
 import { createServer } from "node:http";
+import { createHash, randomUUID } from "node:crypto";
 const user = {
   id: "10000000-0000-4000-8000-000000000099",
   aud: "authenticated",
@@ -12,6 +13,7 @@ const user = {
 const encode = (value) =>
   Buffer.from(JSON.stringify(value)).toString("base64url");
 const usedRecovery = new Set();
+const recoveries = new Map();
 const revoked = new Set();
 const tokenFor = (email) =>
   `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, email, aud: "authenticated", role: "authenticated", exp: Math.floor(Date.now() / 1000) + 86400 })}.test-signature`;
@@ -105,6 +107,25 @@ createServer(async (req, res) => {
     /* Anonymous request. */
   }
   if (req.url.startsWith("/auth/v1/token")) {
+    if (req.url.includes("grant_type=pkce")) {
+      const entry = [...recoveries.values()].find(
+        (value) => value.code === body.auth_code
+      );
+      const challenge = createHash("sha256")
+        .update(body.code_verifier || "")
+        .digest("base64url");
+      if (!entry || entry.used || challenge !== entry.challenge) {
+        res
+          .writeHead(400)
+          .end(
+            JSON.stringify({ message: "Invalid code", code: "invalid_grant" })
+          );
+        return;
+      }
+      entry.used = true;
+      res.end(JSON.stringify(sessionFor(entry.email)));
+      return;
+    }
     if (body.password === "wrong-password") {
       res.writeHead(400).end(
         JSON.stringify({
@@ -115,8 +136,22 @@ createServer(async (req, res) => {
       return;
     }
     res.end(JSON.stringify(sessionFor(body.email || body.refresh_token)));
-  } else if (req.url === "/auth/v1/recover") {
+  } else if (req.url.startsWith("/auth/v1/recover")) {
+    recoveries.set(body.email, {
+      email: body.email,
+      code: randomUUID(),
+      challenge: body.code_challenge,
+      redirectTo: new URL(req.url, "http://localhost").searchParams.get(
+        "redirect_to"
+      ),
+      used: false,
+    });
     res.end("{}");
+  } else if (req.url.startsWith("/test/recovery?")) {
+    const recovery = recoveries.get(
+      new URL(req.url, "http://localhost").searchParams.get("email")
+    );
+    res.end(JSON.stringify(recovery || null));
   } else if (req.url === "/auth/v1/verify") {
     if (
       !body.token_hash?.startsWith("valid-") ||
@@ -137,14 +172,12 @@ createServer(async (req, res) => {
     !revoked.has(email)
   ) {
     if (req.method === "PUT" && body.current_password === "wrong-password") {
-      res
-        .writeHead(400)
-        .end(
-          JSON.stringify({
-            message: "Invalid current password",
-            code: "invalid_credentials",
-          })
-        );
+      res.writeHead(400).end(
+        JSON.stringify({
+          message: "Invalid current password",
+          code: "invalid_credentials",
+        })
+      );
       return;
     }
     res.end(JSON.stringify({ ...user, email }));

@@ -23,6 +23,7 @@ export default defineConfig({
       reuseExistingServer: false,
       env: {
         NEXT_TEST_DIST_DIR: "build/browser-tests",
+        SITE_URL: "http://localhost:3102",
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:55440",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "browser-test-only",
       },
