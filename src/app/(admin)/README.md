@@ -26,12 +26,21 @@
   - Migraciones exclusivamente en `prisma/migrations`. La migración `202611170001_operator_role` renombra STAFF a OPERATOR sin perder perfiles. `OrderFinancials` no existe y se difiere a la definición financiera.
   - `AdminProfile` es la fuente vigente de permisos. No se confía en `user_metadata` ni en el rol técnico del JWT. Cada petición de la API valida usuario, perfil activo y permiso explícito por método/ruta; operaciones no registradas se deniegan.
   - ADMIN gestiona catálogo, variantes, imágenes, stock, pedidos, restock, costos, roles y diagnóstico. OPERATOR solo consulta catálogo sin costos, modifica stock existente y opera pedidos (confirmar pago, enviar y cancelar según las transiciones actuales).
-  - Se conserva la prohibición de modificar el propio rol. Las cuentas se crean en Supabase Auth; el primer ADMIN usa `scripts/bootstrap-admin.mjs`. Los demás perfiles se asignan desde el panel de roles.
+  - Se conserva la prohibición de modificar los propios permisos. El primer ADMIN usa `scripts/bootstrap-admin.mjs`; los demás usuarios se crean desde `/140210/usuarios`, con correo y rol, sin abrir Supabase. La API genera una contraseña interna aleatoria de 24 caracteres y solicita un correo para establecer la contraseña personal.
+
+### Usuarios y Mi perfil
+
+- `/140210/usuarios` requiere ADMIN activo: lista perfiles administrativos con correo en páginas de 25, permite crear ADMIN/OPERATOR, editar permisos y reenviar enlaces de contraseña a cuentas activas. Un correo existente devuelve conflicto; nunca se sobrescriben sus credenciales ni permisos al crear.
+- `/140210/perfil` permite a ambos roles consultar su correo/rol y cambiar su propia contraseña, verificando la actual. La nueva contraseña debe tener 12–128 caracteres y cumplir las restricciones adicionales de Supabase. Tras guardar se cierra sesión. No hay cambio obligatorio después del login.
+- API: `GET/POST /v1/admin/users`, `POST /v1/admin/users/:id/password-link`; `PUT /v1/admin/roles` conserva su contrato. Los enlaces usan la plantilla de recuperación existente y su SiteURL fijo, con un límite persistente de un envío por cuenta cada 60 segundos.
+- Si falla guardar el perfil, se elimina la cuenta recién creada; si también falla esa limpieza, se registra `admin_user_cleanup_required` con el UUID para reparación manual. Si falla el correo después de crear el perfil, la cuenta permanece y la interfaz permite reenviar. “Solicitud aceptada” no garantiza entrega al buzón.
+- No requiere migraciones nuevas. Desplegar la Edge Function antes del frontend y copiar `supabase/templates/recovery.html` a **Reset Password** por entorno. Verificar SiteURL y correo en staging con cuentas de prueba antes de publicar. El repositorio no actualiza automáticamente esa plantilla en Supabase.
+- Verificación: `tests/admin-users.test.ts`, `tests/admin-users.browser.spec.ts` y casos de usuarios en `tests/integration.ts`. Navegador usa Auth local simulado; integración usa PostgreSQL desechable y Auth simulado. La entrega real de correo requiere la comprobación de staging.
 
 ### Configuración y despliegue de ADM-01/02
 
 1. En Supabase Auth configurar Site URL con el origen exacto del entorno, el proveedor de correo y la política de contraseñas. Deshabilitar registro público. No usar comodines de producción en URLs autorizadas.
-2. Copiar `supabase/templates/recovery.html` a la plantilla **Reset Password** del proyecto correspondiente. El enlace usa `{{ .SiteURL }}/admin/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`; no acepta destinos proporcionados por el cliente. La plantilla se configura por entorno y no se publica automáticamente al desplegar Edge Functions.
+2. Para recuperar desde `/140210/recuperar` con el correo predeterminado de Supabase, configurar `SITE_URL` también en Next.js con el origen exacto de la app (por ejemplo `http://localhost:3000`) y añadir `http://localhost:3000/140210/auth/confirm` a **Authentication → URL Configuration → Redirect URLs**, sustituyendo el origen según el entorno. Configurar también **Site URL** en Supabase. Solicitar un correo nuevo y abrirlo en el mismo navegador y perfil donde se pidió: el código PKCE se valida con una cookie de esa solicitud. No se necesitan cambios de plantilla para este flujo; el servidor de correo integrado mantiene las restricciones de destinatarios del equipo y límites de Supabase. Para producción y los enlaces enviados desde Usuarios, configurar SMTP y copiar `supabase/templates/recovery.html` a **Reset Password**. Esta plantilla usa `{{ .SiteURL }}/140210/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`, sigue siendo compatible y no se publica automáticamente al desplegar Edge Functions. Ningún flujo acepta destinos enviados en el formulario o en `next`.
 3. Confirmar las variables públicas de Supabase para Next.js; las credenciales de base de datos y service-role permanecen exclusivamente en el backend. No hace falta una clave privilegiada en Next.js.
 4. En staging, cerrar temporalmente el acceso al backoffice y detener las instancias antiguas de la API durante el cambio del enum. Ejecutar `npm run db:deploy`, `npm run db:generate`, desplegar la API y Next.js de esta misma revisión, y reabrir acceso. No mezclar clientes que esperan STAFF con la base que devuelve OPERATOR. El frontend publicado por separado no debe quedar operativo contra la API antigua.
 5. Verificar login de ambos roles, bloqueo de costos para OPERATOR, desactivación de cuenta con sesión abierta y recuperación por correo con una cuenta de prueba. Repetir el procedimiento coordinado en producción después de validar staging. Revisar errores 401/403/5xx sin registrar tokens, contraseñas ni enlaces de recuperación.
@@ -47,7 +56,7 @@ En equipos con carga concurrente, ejecutar la suite secuencialmente con `node no
 
 ### Fuera de esta entrega
 
-ADM-05 debajo conserva el roadmap original. ADM-04 se documenta con su implementación actual. Las operaciones actuales siguen en Edge Functions; no se migran a Prisma dentro de Server Actions ni se implementan nuevas pantallas financieras en ADM-01/02.
+ADM-05 se documenta debajo con su implementación actual. ADM-04 se documenta con su implementación actual. Las operaciones actuales siguen en Edge Functions; no se migran a Prisma dentro de Server Actions ni se implementan nuevas pantallas financieras en ADM-01/02.
 
 ### [ADM-03] Catálogo y matriz de inventario
 
@@ -74,37 +83,35 @@ ADM-05 debajo conserva el roadmap original. ADM-04 se documenta con su implement
 
 ### [ADM-05] Financial Accounting y Análisis de Márgenes
 
-- **Objetivo:** Captura de costos unitarios y cálculo de rentabilidad bruta.
-- **Entregables:**
-  - Campos en esquema Prisma: `costPrice` (costo interno directo) y `salePrice` (precio retail).
-  - Cálculo de margen bruto unitario: `Margen = ((salePrice - costPrice) / salePrice) * 100`.
-  - `src/app/(admin)/finanzas/page.tsx`: Vista con indicadores clave (KPIs), porcentaje de margen promedio y alertas visuales de productos con bajo margen o margen negativo.
+Implementado en `/140210/finanzas`, con captura conjunta de precio de venta y costo interno directo por producto, KPIs globales sobre los filtros y umbral configurable inicialmente en 30%. Exclusivo de ADMIN.
 
----
+Se conservan `Product.salePrice` y `ProductCost.costPrice`. `FinancialSettings` incorpora el umbral global con RLS. Cálculos y transacciones permanecen en Edge Functions; Next.js usa acciones autenticadas.
 
-## Estructura del Módulo
+[Contratos, fórmulas, migración, operación y pruebas de ADM-05](../../../docs/adm-05-finanzas.md).
+
+## Estructura actual del módulo
 
 ```text
-src/
-├── app/(admin)/
-│   ├── layout.tsx                # Sidebar admin y validación de rol
-│   ├── inventario/page.tsx       # Matriz de stock
-│   ├── productos/page.tsx        # CRUD de catálogo
-│   └── finanzas/page.tsx         # Dashboard financiero
-├── modules/inventory/
-│   ├── application/
-│   │   ├── UpdateStockMatrixUseCase.ts
-│   │   └── CalculateFinancialMarginsUseCase.ts
-│   ├── domain/InventoryVariant.ts
-│   └── infra/PrismaInventoryRepository.ts
+src/app/(admin)/admin/
+  (protected)/layout.tsx
+  (protected)/productos/page.tsx
+  (protected)/inventario/page.tsx
+  (protected)/finanzas/page.tsx
+  login/page.tsx
+src/modules/inventory/
+  application/actions.ts
+  domain/stock-draft.ts
+supabase/functions/_shared/
+  inventory/application/CalculateFinancialMarginsUseCase.ts
+  financial-contracts.ts
+  service.ts
 ```
 
-## Checklist de Verificación
+El prefijo visible actual es `/140210`; `/admin` es interno y su acceso directo devuelve 404. Las rutas públicas de autenticación permanecen fuera del layout protegido.
 
-[ ] Ningún usuario no autenticado puede acceder a páginas protegidas bajo `/admin`; las rutas de autenticación son públicas.
+## Verificación del módulo
 
-[ ] La matriz de inventario permite guardar cambios en bloque sin enviar requests redundantes.
-
-[ ] El costo interno (costPrice) jamás se expone en endpoints o serializadores públicos del catálogo.
-
-[ ] Las imágenes eliminadas en el panel se desvinculan o eliminan del bucket de almacenamiento.
+- Autenticación y autorización: pruebas de acceso y navegador; Finanzas requiere ADMIN.
+- Inventario: pruebas de guardado en bloque y conflictos de ADM-03.
+- Costos: contratos separados y pruebas de exclusión de respuestas operativas/públicas.
+- Imágenes: desvinculación y limpieza asíncrona conforme a ADM-04; su worker conserva la configuración existente.

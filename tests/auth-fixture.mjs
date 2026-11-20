@@ -1,5 +1,6 @@
 // Local browser-test Auth stub. Never used by the application or deployment.
 import { createServer } from "node:http";
+import { createHash, randomUUID } from "node:crypto";
 const user = {
   id: "10000000-0000-4000-8000-000000000099",
   aud: "authenticated",
@@ -12,6 +13,7 @@ const user = {
 const encode = (value) =>
   Buffer.from(JSON.stringify(value)).toString("base64url");
 const usedRecovery = new Set();
+const recoveries = new Map();
 const revoked = new Set();
 const tokenFor = (email) =>
   `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, email, aud: "authenticated", role: "authenticated", exp: Math.floor(Date.now() / 1000) + 86400 })}.test-signature`;
@@ -57,6 +59,8 @@ function seedInventory() {
   }));
 }
 let inventory = seedInventory();
+let financialSettings = { lowMarginThreshold: "30.00", version: 0 };
+const costs = new Map();
 let stockRequests = [];
 const media = new Map();
 let mediaRequests = [];
@@ -103,6 +107,25 @@ createServer(async (req, res) => {
     /* Anonymous request. */
   }
   if (req.url.startsWith("/auth/v1/token")) {
+    if (req.url.includes("grant_type=pkce")) {
+      const entry = [...recoveries.values()].find(
+        (value) => value.code === body.auth_code
+      );
+      const challenge = createHash("sha256")
+        .update(body.code_verifier || "")
+        .digest("base64url");
+      if (!entry || entry.used || challenge !== entry.challenge) {
+        res
+          .writeHead(400)
+          .end(
+            JSON.stringify({ message: "Invalid code", code: "invalid_grant" })
+          );
+        return;
+      }
+      entry.used = true;
+      res.end(JSON.stringify(sessionFor(entry.email)));
+      return;
+    }
     if (body.password === "wrong-password") {
       res.writeHead(400).end(
         JSON.stringify({
@@ -113,8 +136,22 @@ createServer(async (req, res) => {
       return;
     }
     res.end(JSON.stringify(sessionFor(body.email || body.refresh_token)));
-  } else if (req.url === "/auth/v1/recover") {
+  } else if (req.url.startsWith("/auth/v1/recover")) {
+    recoveries.set(body.email, {
+      email: body.email,
+      code: randomUUID(),
+      challenge: body.code_challenge,
+      redirectTo: new URL(req.url, "http://localhost").searchParams.get(
+        "redirect_to"
+      ),
+      used: false,
+    });
     res.end("{}");
+  } else if (req.url.startsWith("/test/recovery?")) {
+    const recovery = recoveries.get(
+      new URL(req.url, "http://localhost").searchParams.get("email")
+    );
+    res.end(JSON.stringify(recovery || null));
   } else if (req.url === "/auth/v1/verify") {
     if (
       !body.token_hash?.startsWith("valid-") ||
@@ -134,6 +171,15 @@ createServer(async (req, res) => {
     email &&
     !revoked.has(email)
   ) {
+    if (req.method === "PUT" && body.current_password === "wrong-password") {
+      res.writeHead(400).end(
+        JSON.stringify({
+          message: "Invalid current password",
+          code: "invalid_credentials",
+        })
+      );
+      return;
+    }
     res.end(JSON.stringify({ ...user, email }));
   } else if (req.url === "/test/revoke" && req.method === "POST") {
     revoked.add(body.email);
@@ -162,6 +208,8 @@ createServer(async (req, res) => {
     }
   } else if (req.url === "/test/inventory/reset" && req.method === "POST") {
     inventory = seedInventory();
+    financialSettings = { lowMarginThreshold: "30.00", version: 0 };
+    costs.clear();
     stockRequests = [];
     media.clear();
     mediaRequests = [];
@@ -190,24 +238,121 @@ createServer(async (req, res) => {
       fail(403, "No tienes permiso");
       return;
     }
+    if (path.startsWith("/admin/finances")) {
+      if (email !== "inventory-admin@example.test") {
+        fail(403, "No tienes permiso");
+        return;
+      }
+      if (path === "/admin/finances/settings" && req.method === "PUT") {
+        if (body.version !== financialSettings.version) {
+          fail(409, "El umbral cambió. Recarga antes de guardar.");
+          return;
+        }
+        financialSettings = {
+          lowMarginThreshold: Number(body.lowMarginThreshold).toFixed(2),
+          version: financialSettings.version + 1,
+        };
+        res.end(JSON.stringify(financialSettings));
+        return;
+      }
+      if (
+        path.startsWith("/admin/finances/products/") &&
+        req.method === "PATCH"
+      ) {
+        const p = inventory.find((p) => p.id === path.split("/").at(-1));
+        if (!p) {
+          fail(404, "Producto no encontrado");
+          return;
+        }
+        if (body.version !== p.version) {
+          fail(409, "El producto cambió. Recarga antes de guardar.");
+          return;
+        }
+        p.salePrice = body.salePrice;
+        p.version++;
+        costs.set(p.id, body.costPrice);
+        res.end("{}");
+        return;
+      }
+      if (path === "/admin/finances/dashboard") {
+        const rows = inventory
+          .filter(
+            (p) =>
+              (!url.searchParams.get("q") ||
+                p.name.includes(url.searchParams.get("q"))) &&
+              (url.searchParams.get("state") === "all" ||
+                p.isArchived === (url.searchParams.get("state") === "archived"))
+          )
+          .map((p) => {
+            const costPrice = costs.get(p.id) ?? null;
+            const amount =
+              costPrice === null
+                ? null
+                : Number(p.salePrice) - Number(costPrice);
+            const percent =
+              amount === null || Number(p.salePrice) === 0
+                ? null
+                : (amount / Number(p.salePrice)) * 100;
+            return {
+              id: p.id,
+              name: p.name,
+              version: p.version,
+              isArchived: p.isArchived,
+              salePrice: p.salePrice,
+              costPrice,
+              amount: amount?.toFixed(2) ?? null,
+              percent: percent?.toFixed(2) ?? null,
+              status:
+                amount === null
+                  ? "missing"
+                  : amount < 0
+                    ? "negative"
+                    : percent === null
+                      ? "undefined"
+                      : percent < Number(financialSettings.lowMarginThreshold)
+                        ? "low"
+                        : "healthy",
+            };
+          });
+        const eligible = rows.filter((r) => r.percent !== null);
+        res.end(
+          JSON.stringify({
+            items: rows,
+            total: rows.length,
+            settings: financialSettings,
+            kpis: {
+              averageMargin: eligible.length
+                ? (
+                    eligible.reduce((s, r) => s + Number(r.percent), 0) /
+                    eligible.length
+                  ).toFixed(2)
+                : null,
+              eligible: eligible.length,
+              low: rows.filter((r) => r.status === "low").length,
+              negative: rows.filter((r) => r.status === "negative").length,
+              missing: rows.filter((r) => r.status === "missing").length,
+            },
+          })
+        );
+        return;
+      }
+    }
     if (path === "/admin/images" && req.method === "POST") {
       const id = crypto.randomUUID();
       const path = id + ".webp";
       const type = req.headers["content-type"];
       media.set(path, { bytes: rawBody, type });
       mediaRequests.push({ path, type, size: rawBody.length });
-      res
-        .writeHead(201)
-        .end(
-          JSON.stringify({
-            id,
+      res.writeHead(201).end(
+        JSON.stringify({
+          id,
+          path,
+          url:
+            "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
             path,
-            url:
-              "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
-              path,
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
-          })
-        );
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        })
+      );
     } else if (path.startsWith("/admin/images/") && req.method === "DELETE") {
       mediaDeletes.push(path.split("/").at(-1));
       res.writeHead(202).end('{"ok":true}');

@@ -1,4 +1,8 @@
 "use server";
+import {
+  financialPricesInput,
+  financialSettingsInput,
+} from "../../../../supabase/functions/_shared/financial-contracts";
 
 import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
@@ -40,6 +44,9 @@ async function mutate(
       { method, body: JSON.stringify(value) },
       session.access_token
     );
+    revalidatePath("/140210/finanzas");
+    revalidatePath("/admin/finanzas");
+    revalidatePath("/140210/productos");
     revalidatePath("/admin/productos");
     revalidatePath("/admin/inventario");
     return { ok: true as const };
@@ -98,4 +105,25 @@ export async function saveVariant(variantId: string | null, input: unknown) {
 }
 export async function updateStock(input: unknown) {
   return mutate("stock:write", "/admin/stock", "PATCH", stockInput, input);
+}
+
+export async function saveFinancialPrices(productId: string, input: unknown) {
+  if (!id.safeParse(productId).success)
+    return { ok: false as const, status: 400, message: "Producto inválido" };
+  return mutate(
+    "finances",
+    "/admin/finances/products/" + productId,
+    "PATCH",
+    financialPricesInput,
+    input
+  );
+}
+export async function saveFinancialSettings(input: unknown) {
+  return mutate(
+    "finances",
+    "/admin/finances/settings",
+    "PUT",
+    financialSettingsInput,
+    input
+  );
 }

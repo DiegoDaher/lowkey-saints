@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { supabaseServer, getAdminProfile } from "./supabase";
+import { validNewPassword } from "../../../supabase/functions/_shared/password-policy";
 
 export type AuthState = { error?: string; message?: string };
 const emailValue = (form: FormData) =>
@@ -57,8 +58,14 @@ export async function requestRecovery(
   if (!validEmail(email)) return { error: "Escribe un correo válido." };
   try {
     const client = await supabaseServer();
-    // The recovery email template uses SiteURL + /140210/auth/confirm and TokenHash.
-    const { error } = await client.auth.resetPasswordForEmail(email);
+    // Use a trusted deployment URL, never a destination submitted by the form.
+    // The default template returns a PKCE code; custom templates use TokenHash.
+    const siteUrl = process.env.SITE_URL;
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      ...(siteUrl && {
+        redirectTo: new URL("/140210/auth/confirm", siteUrl).toString(),
+      }),
+    });
     if (error && error.status && error.status >= 500)
       return { error: "El servicio no está disponible. Intenta de nuevo." };
   } catch {
@@ -66,7 +73,7 @@ export async function requestRecovery(
   }
   return {
     message:
-      "Si existe una cuenta con ese correo, recibirás instrucciones para restablecer tu contraseña. Revisa tu bandeja o intenta más tarde.",
+      "Si existe una cuenta con ese correo, recibirás instrucciones para restablecer tu contraseña. Abre el enlace en este mismo navegador. Revisa tu bandeja o intenta más tarde.",
   };
 }
 
@@ -75,12 +82,11 @@ export async function resetPassword(
   form: FormData
 ): Promise<AuthState> {
   const password = String(form.get("password") || "");
-  if (
-    !password ||
-    password.length > 1024 ||
-    password !== form.get("confirmation")
-  )
-    return { error: "Las contraseñas deben coincidir y no estar vacías." };
+  if (!validNewPassword(password) || password !== form.get("confirmation"))
+    return {
+      error:
+        "Las contraseñas deben coincidir y tener entre 12 y 128 caracteres.",
+    };
   try {
     const client = await supabaseServer();
     const {
@@ -98,6 +104,46 @@ export async function resetPassword(
     await client.auth.signOut();
   } catch {
     return { error: "El servicio no está disponible. Intenta de nuevo." };
+  }
+  redirect("/140210/login?actualizada=1");
+}
+
+export async function changePassword(
+  _state: AuthState,
+  form: FormData
+): Promise<AuthState> {
+  const password = String(form.get("password") || "");
+  const currentPassword = String(form.get("currentPassword") || "");
+  if (!validNewPassword(password) || password !== form.get("confirmation"))
+    return {
+      error:
+        "Las contraseñas deben coincidir y tener entre 12 y 128 caracteres.",
+    };
+  if (!currentPassword || currentPassword.length > 1024)
+    return { error: "Escribe tu contraseña actual." };
+  try {
+    await getAdminProfile();
+    const client = await supabaseServer();
+    const { error } = await client.auth.updateUser({
+      password,
+      current_password: currentPassword,
+    });
+    if (error)
+      return {
+        error:
+          "No se pudo cambiar la contraseña. Revisa la contraseña actual y las restricciones de seguridad de la nueva.",
+      };
+    const { error: signOutError } = await client.auth.signOut();
+    if (signOutError)
+      return {
+        error:
+          "Contraseña actualizada. No se pudo cerrar la sesión; usa Cerrar sesión antes de continuar.",
+      };
+  } catch {
+    return {
+      error:
+        "No se pudo verificar tu acceso o completar el cambio. Intenta de nuevo.",
+    };
   }
   redirect("/140210/login?actualizada=1");
 }

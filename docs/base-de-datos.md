@@ -122,3 +122,7 @@ Esta matriz distingue implementación de activación: configurar el proveedor de
 ## Actualización ADM-04
 
 La migración `202611180001_product_media` añade `ProductMediaAsset`, backfill de rutas referenciadas, FK desde `ProductImage.path` y RLS forzada. Se conserva la ruta como dato canónico y la URL pública derivada. `POST /admin/images` agrega `id` y `expiresAt`; `DELETE /admin/images/:id` descarta un temporal propio. Ambos requieren ADMIN. La limpieza de jobs está controlada por `MEDIA_CLEANUP_ENABLED=false` hasta completar la validación. Ver [contratos y despliegue de ADM-04](adm-04-multimedia.md).
+
+## ADM-05: configuración financiera
+
+Se mantienen `Product.salePrice` y `ProductCost.costPrice` como Decimal(10,2). La migración `202611200001_financial_settings` añade `FinancialSettings`, singleton con id=1, umbral Decimal(5,2) entre 0 y 100 (inicial 30), versión no negativa y updatedAt. RLS habilitado y forzado; sin acceso para anon/authenticated. Guardar costos incrementa Product.version; el panel actualiza precio y costo en una única transacción. No hay backfill de costos. Ver [ADM-05](adm-05-finanzas.md).
