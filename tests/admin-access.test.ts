@@ -25,6 +25,9 @@ const routes = [
   ["PUT", "/finances", false],
   ["GET", "/roles", false],
   ["PUT", "/roles", false],
+  ["GET", "/users", false],
+  ["POST", "/users", false],
+  ["POST", "/users/id/password-link", false],
   ["POST", "/images", false],
   ["DELETE", "/images/id", false],
 ] as const;

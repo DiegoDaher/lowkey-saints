@@ -30,3 +30,7 @@ El despliegue trata frontend, API, migraciones y worker por separado. Las entreg
 ## Multimedia ADM-04
 
 El adaptador Storage vive en `supabase/functions/_shared/storage/` y lo comparten API y jobs. `ProductMediaAsset` coordina subidas temporales, referencias y limpieza; `ProductImage.path` conserva la ruta y la API deriva su URL pública. El worker elimina únicamente archivos sin referencias y está desactivado por defecto. Ver [operación de ADM-04](adm-04-multimedia.md).
+
+## Finanzas ADM-05
+
+La ruta visible `/140210/finanzas` usa el rewrite administrativo vigente; `/admin` directo devuelve 404. El dashboard y sus Server Actions requieren ADMIN. `CalculateFinancialMarginsUseCase` en las Edge Functions concentra lectura consistente, cálculos Decimal y guardado atómico de precio/costo con versión optimista. `FinancialSettings` conserva el umbral global protegido por RLS. Ver [contratos y operación](adm-05-finanzas.md).

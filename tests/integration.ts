@@ -456,9 +456,9 @@ Deno.test({
           relrowsecurity: boolean;
           relforcerowsecurity: boolean;
         }[]
-      >`SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname IN ('ProductCost','Order','RestockSubscription','OrderStatusHistory')`;
+      >`SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname IN ('ProductCost','Order','RestockSubscription','OrderStatusHistory','FinancialSettings')`;
       assert(
-        security.length === 4 &&
+        security.length === 5 &&
           security.every((r) => r.relrowsecurity && r.relforcerowsecurity),
         "RLS enabled and forced"
       );
@@ -481,6 +481,18 @@ Deno.test({
           denied = true;
         }
         assert(denied, "browser role denied: " + role);
+      }
+      for (const role of ["anon", "authenticated"]) {
+        let denied = false;
+        try {
+          await db.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe("SET LOCAL ROLE " + role);
+            await tx.financialSettings.findMany();
+          });
+        } catch {
+          denied = true;
+        }
+        assert(denied, "financial settings denied for " + role);
       }
       for (const role of ["anon", "authenticated", "lowkey_api"]) {
         for (const operation of ["SELECT", "UPDATE", "DELETE"]) {
@@ -556,6 +568,147 @@ Deno.test({
         },
       } as unknown as NonNullable<Parameters<typeof createApiHandler>[1]>;
       const handler = createApiHandler(db, fakeAuth);
+      // Users: exercise real HTTP authorization, persistence and delivery cooldown.
+      const createdEmails = new Map<string, string>();
+      const usersAdmin = await db.adminProfile.create({
+        data: { id: crypto.randomUUID(), role: "ADMIN" },
+      });
+      let mailFails = false;
+      let deliveries = 0;
+      const usersHandler = createApiHandler(db, {
+        auth: {
+          getUser: (token: string) =>
+            token === "ADMIN"
+              ? Promise.resolve({
+                  data: { user: { id: usersAdmin.id } },
+                  error: null,
+                })
+              : fakeAuth.auth.getUser(token),
+          admin: {
+            createUser: ({ email }: { email: string }) => {
+              if ([...createdEmails.values()].includes(email))
+                return Promise.resolve({
+                  data: {},
+                  error: { code: "email_exists" },
+                });
+              const id = crypto.randomUUID();
+              createdEmails.set(id, email);
+              return Promise.resolve({ data: { user: { id } }, error: null });
+            },
+            getUserById: (id: string) =>
+              Promise.resolve({
+                data: {
+                  user: {
+                    id,
+                    email: createdEmails.get(id) || `${id}@example.test`,
+                  },
+                },
+                error: null,
+              }),
+            deleteUser: (id: string) => {
+              createdEmails.delete(id);
+              return Promise.resolve({ error: null });
+            },
+          },
+          resetPasswordForEmail: () => {
+            deliveries++;
+            return Promise.resolve({
+              error: mailFails ? new Error("mail unavailable") : null,
+            });
+          },
+        },
+      } as unknown as NonNullable<Parameters<typeof createApiHandler>[1]>);
+      const usersRequest = (
+        path: string,
+        method: string,
+        token?: string,
+        body?: unknown
+      ) =>
+        usersHandler(
+          new Request("http://localhost/v1/admin" + path, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: "Bearer " + token } : {}),
+            },
+            ...(body ? { body: JSON.stringify(body) } : {}),
+          })
+        );
+      for (const token of [undefined, "OPERATOR", "INACTIVE", "UNASSIGNED"]) {
+        for (const [path, method] of [
+          ["/users", "GET"],
+          ["/users", "POST"],
+          [`/users/${profiles.ADMIN.id}/password-link`, "POST"],
+        ]) {
+          const response = await usersRequest(path, method, token);
+          assert(
+            response.status === (token ? 403 : 401),
+            "users API denies non-admin actors"
+          );
+        }
+      }
+      for (const role of ["ADMIN", "OPERATOR"]) {
+        mailFails = role === "OPERATOR";
+        const input = { email: `${role.toLowerCase()}-new@example.test`, role };
+        const response = await usersRequest("/users", "POST", "ADMIN", input);
+        const result = await response.json();
+        assert(
+          response.status === 201 && !result.password,
+          "creates without exposing password"
+        );
+        assert(
+          result.emailStatus === (mailFails ? "failed" : "accepted"),
+          "reports partial email failure"
+        );
+        assert(
+          (
+            await db.adminProfile.findUniqueOrThrow({
+              where: { id: result.id },
+            })
+          ).role === role,
+          "persists chosen role"
+        );
+        assert(
+          (await usersRequest("/users", "POST", "ADMIN", input)).status === 409,
+          "duplicate is conflict"
+        );
+        assert(
+          (
+            await usersRequest(
+              `/users/${result.id}/password-link`,
+              "POST",
+              "ADMIN"
+            )
+          ).status === 429,
+          "initial email consumes cooldown"
+        );
+        await db.rateLimit.update({
+          where: { key: "admin-password-link:" + result.id },
+          data: { expiresAt: new Date(0) },
+        });
+        mailFails = false;
+        const before = deliveries;
+        const concurrent = await Promise.all([
+          usersRequest(`/users/${result.id}/password-link`, "POST", "ADMIN"),
+          usersRequest(`/users/${result.id}/password-link`, "POST", "ADMIN"),
+        ]);
+        assert(
+          concurrent
+            .map((r) => r.status)
+            .sort()
+            .join() === "200,429" && deliveries === before + 1,
+          "atomic cooldown allows one resend"
+        );
+      }
+      const usersList = await usersRequest("/users?page=1", "GET", "ADMIN");
+      assert(
+        usersList.status === 200 && (await usersList.json()).users.length <= 25,
+        "lists bounded administrative profiles"
+      );
+      assert(
+        (await usersRequest("/users?page=0", "GET", "ADMIN")).status === 400,
+        "rejects invalid pagination"
+      );
       const adminRequest = (
         path: string,
         method: string,
@@ -584,6 +737,10 @@ Deno.test({
         ["/restock", "GET"],
         ["/restock/retry", "POST"],
         ["/finances", "GET"],
+        ["/finances/dashboard", "GET"],
+        ["/finances/settings", "GET"],
+        ["/finances/settings", "PUT"],
+        ["/finances/products/" + v.productId, "PATCH"],
         ["/finances", "PUT"],
         ["/roles", "GET"],
         ["/roles", "PUT"],
@@ -651,6 +808,149 @@ Deno.test({
         ).status === 200,
         "admin updates cost"
       );
+      // ADM-05: atomic prices, stale versions, filtered aggregates and global settings.
+      const financialPath = "/finances/products/" + inventory.productId;
+      const priceInput = { version: 1, salePrice: "100", costPrice: "80" };
+      assert(
+        (await adminRequest(financialPath, "PATCH", "ADMIN", priceInput))
+          .status === 200,
+        "financial prices saved"
+      );
+      assert(
+        (
+          await adminRequest(financialPath, "PATCH", "ADMIN", {
+            ...priceInput,
+            salePrice: "500",
+            costPrice: "1",
+          })
+        ).status === 409,
+        "stale prices rejected"
+      );
+      const savedProduct = await db.product.findUniqueOrThrow({
+        where: { id: inventory.productId },
+        include: { financial: true },
+      });
+      assert(
+        savedProduct.salePrice.toString() === "100" &&
+          savedProduct.financial?.costPrice.toString() === "80",
+        "conflict leaves both prices unchanged"
+      );
+      const settings = await (
+        await adminRequest("/finances/settings", "GET", "ADMIN")
+      ).json();
+      assert(
+        (
+          await adminRequest("/finances/settings", "PUT", "ADMIN", {
+            version: settings.version,
+            lowMarginThreshold: "20",
+          })
+        ).status === 200,
+        "threshold persisted"
+      );
+      assert(
+        (
+          await adminRequest("/finances/settings", "PUT", "ADMIN", {
+            version: settings.version,
+            lowMarginThreshold: "40",
+          })
+        ).status === 409,
+        "stale settings rejected"
+      );
+      await db.product.update({
+        where: { id: inventory.productId },
+        data: { name: "ADM05 unique" },
+      });
+      const report = await (
+        await adminRequest("/finances/dashboard?q=ADM05", "GET", "ADMIN")
+      ).json();
+      assert(
+        report.total === 1 &&
+          report.kpis.averageMargin === "20.00" &&
+          report.kpis.low === 0,
+        "filtered average uses configured threshold"
+      );
+      const secondPage = await (
+        await adminRequest("/finances/dashboard?q=ADM05&page=2", "GET", "ADMIN")
+      ).json();
+      assert(
+        secondPage.items.length === 0 &&
+          secondPage.kpis.averageMargin === "20.00",
+        "aggregates independent of pagination"
+      );
+      const emptyReport = await (
+        await adminRequest(
+          "/finances/dashboard?q=not-existing-adm05",
+          "GET",
+          "ADMIN"
+        )
+      ).json();
+      assert(emptyReport.kpis.averageMargin === null, "empty average is null");
+      const financeCategory = await db.category.create({
+        data: { name: "ADM05 test", slug: crypto.randomUUID() },
+      });
+      for (const [salePrice, costPrice, isArchived] of [
+        ["100", "80", false],
+        ["100", "120", false],
+        ["0", "5", false],
+        ["100", null, false],
+        ["100", "0", true],
+      ] as const) {
+        await db.product.create({
+          data: {
+            name: "ADM05 group",
+            slug: crypto.randomUUID(),
+            salePrice,
+            isArchived,
+            categories: { create: { categoryId: financeCategory.id } },
+            ...(costPrice === null
+              ? {}
+              : { financial: { create: { costPrice } } }),
+          },
+        });
+      }
+      const categoryReport = await (
+        await adminRequest(
+          "/finances/dashboard?category=" + financeCategory.id,
+          "GET",
+          "ADMIN"
+        )
+      ).json();
+      assert(
+        categoryReport.total === 4 &&
+          categoryReport.kpis.eligible === 2 &&
+          categoryReport.kpis.averageMargin === "0.00" &&
+          categoryReport.kpis.negative === 2 &&
+          categoryReport.kpis.missing === 1,
+        "averages exclude missing and zero prices, counts include zero-price losses"
+      );
+      const archivedReport = await (
+        await adminRequest(
+          "/finances/dashboard?state=archived&category=" + financeCategory.id,
+          "GET",
+          "ADMIN"
+        )
+      ).json();
+      assert(
+        archivedReport.total === 1 &&
+          archivedReport.kpis.averageMargin === "100.00",
+        "archived filter and explicit zero cost"
+      );
+      for (const path of [
+        "/v1/products",
+        "/v1/products/" + savedProduct.slug,
+      ]) {
+        const publicResponse = await handler(
+          new Request("http://localhost" + path)
+        );
+        assert(publicResponse.status === 200, "public catalog read succeeds");
+        const serialized = await publicResponse.text();
+        assert(
+          !serialized.includes('"costPrice"') &&
+            !serialized.includes('"financial"') &&
+            !serialized.includes('"lowMarginThreshold"'),
+          "public catalog excludes financial fields"
+        );
+      }
       const historical = await shop.createOrder(order(inventory.id));
       const originalSku = inventory.sku;
       assert(
@@ -672,7 +972,7 @@ Deno.test({
             "PATCH",
             "ADMIN",
             {
-              version: 0,
+              version: savedProduct.version,
               isArchived: true,
             }
           )
@@ -712,7 +1012,7 @@ Deno.test({
             "PATCH",
             "ADMIN",
             {
-              version: 1,
+              version: savedProduct.version + 1,
               isArchived: false,
             }
           )

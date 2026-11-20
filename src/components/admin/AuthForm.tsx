@@ -46,7 +46,8 @@ export default function AuthForm({
               autoComplete={
                 mode === "login" ? "current-password" : "new-password"
               }
-              maxLength={1024}
+              minLength={mode === "reset" ? 12 : undefined}
+              maxLength={mode === "reset" ? 128 : 1024}
               required
             />
           </label>
@@ -58,7 +59,8 @@ export default function AuthForm({
               name="confirmation"
               type="password"
               autoComplete="new-password"
-              maxLength={1024}
+              minLength={12}
+              maxLength={128}
               required
             />
           </label>

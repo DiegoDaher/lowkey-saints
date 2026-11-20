@@ -34,6 +34,13 @@ export function adminPermission(
   method: string
 ): AdminPermission | null {
   if (route === "/v1/admin/me" && method === "GET") return "session";
+  if (route === "/v1/admin/users" && ["GET", "POST"].includes(method))
+    return "roles";
+  if (
+    /^\/v1\/admin\/users\/[^/]+\/password-link$/.test(route) &&
+    method === "POST"
+  )
+    return "roles";
   if (route === "/v1/admin/health" && method === "GET") return "health";
   if (/^\/v1\/admin\/products(?:\/[^/]+)?$/.test(route)) {
     if (method === "GET") return "catalog:read";
@@ -60,6 +67,14 @@ export function adminPermission(
     (route === "/v1/admin/restock/retry" && method === "POST")
   )
     return "restock";
+  if (
+    (route === "/v1/admin/finances/dashboard" && method === "GET") ||
+    (route === "/v1/admin/finances/settings" &&
+      ["GET", "PUT"].includes(method)) ||
+    (/^\/v1\/admin\/finances\/products\/[^/]+$/.test(route) &&
+      method === "PATCH")
+  )
+    return "finances";
   if (route === "/v1/admin/finances" && ["GET", "PUT"].includes(method))
     return "finances";
   if (route === "/v1/admin/roles" && ["GET", "PUT"].includes(method))

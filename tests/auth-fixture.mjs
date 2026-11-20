@@ -57,6 +57,8 @@ function seedInventory() {
   }));
 }
 let inventory = seedInventory();
+let financialSettings = { lowMarginThreshold: "30.00", version: 0 };
+const costs = new Map();
 let stockRequests = [];
 const media = new Map();
 let mediaRequests = [];
@@ -134,6 +136,17 @@ createServer(async (req, res) => {
     email &&
     !revoked.has(email)
   ) {
+    if (req.method === "PUT" && body.current_password === "wrong-password") {
+      res
+        .writeHead(400)
+        .end(
+          JSON.stringify({
+            message: "Invalid current password",
+            code: "invalid_credentials",
+          })
+        );
+      return;
+    }
     res.end(JSON.stringify({ ...user, email }));
   } else if (req.url === "/test/revoke" && req.method === "POST") {
     revoked.add(body.email);
@@ -162,6 +175,8 @@ createServer(async (req, res) => {
     }
   } else if (req.url === "/test/inventory/reset" && req.method === "POST") {
     inventory = seedInventory();
+    financialSettings = { lowMarginThreshold: "30.00", version: 0 };
+    costs.clear();
     stockRequests = [];
     media.clear();
     mediaRequests = [];
@@ -190,24 +205,121 @@ createServer(async (req, res) => {
       fail(403, "No tienes permiso");
       return;
     }
+    if (path.startsWith("/admin/finances")) {
+      if (email !== "inventory-admin@example.test") {
+        fail(403, "No tienes permiso");
+        return;
+      }
+      if (path === "/admin/finances/settings" && req.method === "PUT") {
+        if (body.version !== financialSettings.version) {
+          fail(409, "El umbral cambió. Recarga antes de guardar.");
+          return;
+        }
+        financialSettings = {
+          lowMarginThreshold: Number(body.lowMarginThreshold).toFixed(2),
+          version: financialSettings.version + 1,
+        };
+        res.end(JSON.stringify(financialSettings));
+        return;
+      }
+      if (
+        path.startsWith("/admin/finances/products/") &&
+        req.method === "PATCH"
+      ) {
+        const p = inventory.find((p) => p.id === path.split("/").at(-1));
+        if (!p) {
+          fail(404, "Producto no encontrado");
+          return;
+        }
+        if (body.version !== p.version) {
+          fail(409, "El producto cambió. Recarga antes de guardar.");
+          return;
+        }
+        p.salePrice = body.salePrice;
+        p.version++;
+        costs.set(p.id, body.costPrice);
+        res.end("{}");
+        return;
+      }
+      if (path === "/admin/finances/dashboard") {
+        const rows = inventory
+          .filter(
+            (p) =>
+              (!url.searchParams.get("q") ||
+                p.name.includes(url.searchParams.get("q"))) &&
+              (url.searchParams.get("state") === "all" ||
+                p.isArchived === (url.searchParams.get("state") === "archived"))
+          )
+          .map((p) => {
+            const costPrice = costs.get(p.id) ?? null;
+            const amount =
+              costPrice === null
+                ? null
+                : Number(p.salePrice) - Number(costPrice);
+            const percent =
+              amount === null || Number(p.salePrice) === 0
+                ? null
+                : (amount / Number(p.salePrice)) * 100;
+            return {
+              id: p.id,
+              name: p.name,
+              version: p.version,
+              isArchived: p.isArchived,
+              salePrice: p.salePrice,
+              costPrice,
+              amount: amount?.toFixed(2) ?? null,
+              percent: percent?.toFixed(2) ?? null,
+              status:
+                amount === null
+                  ? "missing"
+                  : amount < 0
+                    ? "negative"
+                    : percent === null
+                      ? "undefined"
+                      : percent < Number(financialSettings.lowMarginThreshold)
+                        ? "low"
+                        : "healthy",
+            };
+          });
+        const eligible = rows.filter((r) => r.percent !== null);
+        res.end(
+          JSON.stringify({
+            items: rows,
+            total: rows.length,
+            settings: financialSettings,
+            kpis: {
+              averageMargin: eligible.length
+                ? (
+                    eligible.reduce((s, r) => s + Number(r.percent), 0) /
+                    eligible.length
+                  ).toFixed(2)
+                : null,
+              eligible: eligible.length,
+              low: rows.filter((r) => r.status === "low").length,
+              negative: rows.filter((r) => r.status === "negative").length,
+              missing: rows.filter((r) => r.status === "missing").length,
+            },
+          })
+        );
+        return;
+      }
+    }
     if (path === "/admin/images" && req.method === "POST") {
       const id = crypto.randomUUID();
       const path = id + ".webp";
       const type = req.headers["content-type"];
       media.set(path, { bytes: rawBody, type });
       mediaRequests.push({ path, type, size: rawBody.length });
-      res
-        .writeHead(201)
-        .end(
-          JSON.stringify({
-            id,
+      res.writeHead(201).end(
+        JSON.stringify({
+          id,
+          path,
+          url:
+            "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
             path,
-            url:
-              "http://127.0.0.1:55440/storage/v1/object/public/product-images/" +
-              path,
-            expiresAt: new Date(Date.now() + 86400000).toISOString(),
-          })
-        );
+          expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        })
+      );
     } else if (path.startsWith("/admin/images/") && req.method === "DELETE") {
       mediaDeletes.push(path.split("/").at(-1));
       res.writeHead(202).end('{"ok":true}');

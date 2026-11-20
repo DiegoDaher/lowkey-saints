@@ -272,3 +272,10 @@ model RateLimit {
 
   @@index([expiresAt])
 }
+
+model FinancialSettings {
+  id                 Int      @id @default(1)
+  lowMarginThreshold Decimal  @default(30) @db.Decimal(5, 2)
+  version            Int      @default(0)
+  updatedAt          DateTime @updatedAt
+}

@@ -1,8 +1,18 @@
+import {
+  CalculateFinancialMarginsUseCase,
+  calculateFinancialRow,
+} from "../_shared/inventory/application/CalculateFinancialMarginsUseCase.ts";
+import {
+  financialPricesInput,
+  financialSettingsInput,
+  financialQuery,
+} from "../_shared/financial-contracts.ts";
 import { productStorage } from "../_shared/storage/adapter.ts";
 import { uploadMedia, discardMedia } from "../_shared/storage/media.ts";
 import { availableOrderActions } from "../_shared/orders/domain/OrderStateValidator.ts";
 import { WhatsAppMessageSerializer } from "../_shared/orders/infra/WhatsAppMessageSerializer.ts";
 import { createClient } from "@supabase/supabase-js";
+import { AdminUsers } from "../_shared/admin-users.ts";
 import {
   adminPermission,
   hasPermission,
@@ -11,7 +21,7 @@ import {
 import { z } from "zod";
 import { db } from "../_shared/db.ts";
 import { ShopService, productInclude } from "../_shared/service.ts";
-import { AppError, hash, margin } from "../_shared/domain.ts";
+import { AppError, hash } from "../_shared/domain.ts";
 import {
   orderInput,
   productInput,
@@ -57,6 +67,7 @@ export function createApiHandler(
   const db = database;
   const auth = authClient;
   const shop = new ShopService(db);
+  const finances = new CalculateFinancialMarginsUseCase(shop);
   async function administrator(
     req: Request,
     permission: AdminPermission | null
@@ -463,6 +474,55 @@ export function createApiHandler(
           );
         return json({ ok: true });
       }
+      if (route === "/v1/admin/finances/dashboard" && method === "GET")
+        return json(
+          await finances.dashboard(
+            financialQuery.parse(Object.fromEntries(url.searchParams))
+          )
+        );
+      if (route === "/v1/admin/finances/settings" && method === "GET") {
+        const settings = await db.financialSettings.findUniqueOrThrow({
+          where: { id: 1 },
+        });
+        return json({
+          lowMarginThreshold: settings.lowMarginThreshold.toFixed(2),
+          version: settings.version,
+        });
+      }
+      if (route === "/v1/admin/finances/settings" && method === "PUT") {
+        const v = financialSettingsInput.parse(await body(req));
+        return json(
+          await shop.atomic(async (tx) => {
+            const changed = await tx.financialSettings.updateMany({
+              where: { id: 1, version: v.version },
+              data: {
+                lowMarginThreshold: v.lowMarginThreshold,
+                version: { increment: 1 },
+              },
+            });
+            if (!changed.count)
+              throw new AppError(
+                409,
+                "El umbral cambió. Recarga antes de guardar."
+              );
+            return tx.financialSettings.findUniqueOrThrow({ where: { id: 1 } });
+          })
+        );
+      }
+      if (
+        /^\/v1\/admin\/finances\/products\/[^/]+$/.test(route) &&
+        method === "PATCH"
+      ) {
+        const productId = id.parse(route.split("/").pop());
+        return json(
+          (
+            await finances.save(
+              productId,
+              financialPricesInput.parse(await body(req))
+            )
+          ).row
+        );
+      }
       if (route === "/v1/admin/finances" && method === "GET") {
         const page = z.coerce
           .number()
@@ -482,7 +542,13 @@ export function createApiHandler(
             salePrice: p.salePrice,
             costPrice: p.financial?.costPrice ?? null,
             margin: p.financial
-              ? margin(Number(p.salePrice), Number(p.financial.costPrice))
+              ? (() => {
+                  const row = calculateFinancialRow(p, new Prisma.Decimal(30));
+                  return {
+                    amount: Number(row.amount),
+                    percent: row.percent === null ? null : Number(row.percent),
+                  };
+                })()
               : null,
           }))
         );
@@ -493,11 +559,37 @@ export function createApiHandler(
           .strict()
           .parse(await body(req));
         return json(
-          await db.productCost.upsert({
-            where: { productId: v.productId },
-            create: v,
-            update: { costPrice: v.costPrice },
+          (await finances.save(v.productId, { costPrice: v.costPrice })).cost
+        );
+      }
+      if (route === "/v1/admin/users" && method === "GET") {
+        const page = z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(100000)
+          .parse(url.searchParams.get("page") || "1");
+        return json(await new AdminUsers(db, auth).list(page));
+      }
+      if (route === "/v1/admin/users" && method === "POST") {
+        const input = z
+          .object({
+            email: z.string().trim().toLowerCase().email().max(254),
+            role: z.enum(["ADMIN", "OPERATOR"]),
           })
+          .strict()
+          .parse(await body(req));
+        return json(
+          await new AdminUsers(db, auth).create(input.email, input.role),
+          201
+        );
+      }
+      if (
+        /^\/v1\/admin\/users\/[^/]+\/password-link$/.test(route) &&
+        method === "POST"
+      ) {
+        return json(
+          await new AdminUsers(db, auth).sendLink(id.parse(route.split("/")[4]))
         );
       }
       if (route === "/v1/admin/roles" && method === "GET")

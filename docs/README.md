@@ -4,6 +4,8 @@ Lowkey Saints es una aplicación web construida con Next.js, TypeScript, Tailwin
 
 ## Documentos
 
+- [Finanzas y márgenes ADM-05](./adm-05-finanzas.md): captura, KPIs, permisos, migración y pruebas.
+
 - [Arquitectura y estructura](./architecture.md): organización de `src`, responsabilidades de cada capa, rutas de Next.js y límites entre módulos.
 - [Calidad y flujo de commits](./quality-and-commits.md): Husky, lint-staged, ESLint, Prettier, TypeScript y comprobaciones antes de confirmar cambios.
 - [Control de versiones](./control-de-versiones.md): sistema, plataforma, flujo de trabajo, ramas, integración, Pull Requests y responsabilidades de acceso.
@@ -46,7 +48,7 @@ npm run check-types  # TypeScript sin emitir archivos
 npm run db:generate  # genera Prisma Client
 npm run db:push      # sincroniza el esquema con la base de datos
 npm run db:studio    # abre Prisma Studio
-npm test             # actualmente es un placeholder
+npm test             # pruebas unitarias
 ```
 
 Los commits normales también ejecutan automáticamente las comprobaciones descritas en [Calidad y flujo de commits](./quality-and-commits.md).

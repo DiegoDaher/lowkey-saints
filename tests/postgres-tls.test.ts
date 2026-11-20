@@ -11,7 +11,9 @@ import {
 test("TLS trust anchor matches the supplied CA and is currently valid", async () => {
   assert.equal(
     POSTGRES_CA,
-    (await readFile("docs/prod-ca-2021.crt", "utf8")).trim()
+    (await readFile("docs/prod-ca-2021.crt", "utf8"))
+      .replace(/\r\n/g, "\n")
+      .trim()
   );
   const cert = new X509Certificate(POSTGRES_CA);
   assert.equal(cert.ca, true);
