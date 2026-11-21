@@ -55,7 +55,7 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "prisma": "^8.0.0-rc.34",
+    "prisma": "7.10.0",
     "supabase": "^2.121.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
