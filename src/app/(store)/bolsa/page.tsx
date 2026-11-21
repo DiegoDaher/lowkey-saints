@@ -1,5 +1,5 @@
 "use client";
-import Loader from "@/components/ui/Loader";
+import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import { statusLabel } from "@/lib/status-label";
 import Link from "next/link";
@@ -153,9 +153,9 @@ export default function Bag() {
                 className="w-full sm:w-auto"
               >
                 {busy ? (
-                  <Loader
+                  <Spinner
                     announce={false}
-                    variant="inline"
+
                     label="Creando pedido…"
                   />
                 ) : (

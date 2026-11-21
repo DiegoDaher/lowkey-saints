@@ -17,9 +17,23 @@ import {
   type StockDraft,
 } from "@/modules/inventory/domain/stock-draft";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
-import ProductEditor from "./ProductEditor";
+import dynamic from "next/dynamic";
+import AdminModal from "./AdminModal";
+import Spinner from "@/components/ui/Spinner";
+function EditorLoading() {
+  return (
+    <AdminModal title="Abriendo editor…" dirty={false} busy onClose={() => {}}>
+      <Spinner label="Cargando editor…" />
+    </AdminModal>
+  );
+}
+const ProductEditor = dynamic(() => import("./ProductEditor"), {
+  loading: EditorLoading,
+});
 import InventoryMatrix from "./InventoryMatrix";
-import VariantEditor from "./VariantEditor";
+const VariantEditor = dynamic(() => import("./VariantEditor"), {
+  loading: EditorLoading,
+});
 
 type Listing = { items: CatalogProduct[]; total: number };
 export default function CatalogWorkspace({
@@ -37,11 +51,31 @@ export default function CatalogWorkspace({
     page: 1,
   });
   const [draft, setDraft] = useState<StockDraft>({});
-  const [editorDirty, setEditorDirty] = useState(false);
   const [editing, setEditing] = useState<string | null | undefined>();
   const [variants, setVariants] = useState<string | null>(null);
+  const editorTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreEditorFocus = useRef(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (
+      editing !== undefined ||
+      variants !== null ||
+      loading ||
+      !restoreEditorFocus.current
+    )
+      return;
+    restoreEditorFocus.current = false;
+    const frame = requestAnimationFrame(() => {
+      if (editorTrigger.current?.isConnected)
+        editorTrigger.current.focus({ preventScroll: true });
+      else
+        document
+          .getElementById("catalog-heading")
+          ?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [editing, variants, loading]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -157,12 +191,6 @@ export default function CatalogWorkspace({
   }, [count]);
 
   function guard(next: () => void) {
-    if (
-      editing !== undefined &&
-      editorDirty &&
-      !window.confirm("Hay cambios sin guardar. ¿Descartarlos?")
-    )
-      return;
     if (count) setPending(() => next);
     else next();
   }
@@ -217,7 +245,7 @@ export default function CatalogWorkspace({
           JSON.parse(String(options.body))
         );
         if (!result.ok) throw new ApiError(result.status, result.message);
-        return result as T;
+        return result.data as T;
       }
       return call<T>(path, options);
     },
@@ -262,7 +290,7 @@ export default function CatalogWorkspace({
       data-catalog-workspace
       className="admin-form mx-auto w-full max-w-7xl space-y-6 p-6 md:p-10"
     >
-      <h1 className="font-display text-4xl">
+      <h1 id="catalog-heading" tabIndex={-1} className="font-display text-4xl">
         {mode === "productos" ? "Catálogo de productos" : "Inventario"}
       </h1>
       <p role="alert">{error}</p>
@@ -368,6 +396,9 @@ export default function CatalogWorkspace({
                     setVariants(null);
                   })
                 }
+                onClickCapture={(e) => {
+                  editorTrigger.current = e.currentTarget;
+                }}
               >
                 Nuevo producto
               </AdminButton>
@@ -377,15 +408,10 @@ export default function CatalogWorkspace({
                   product={listing.items.find((p) => p.id === editing) ?? null}
                   categories={categories}
                   call={editorCall}
-                  onDirtyChange={setEditorDirty}
-                  onClose={() => {
-                    setEditorDirty(false);
+                  onClose={(changed) => {
+                    restoreEditorFocus.current = true;
                     setEditing(undefined);
-                  }}
-                  onSaved={async () => {
-                    setEditorDirty(false);
-                    setEditing(undefined);
-                    await refresh();
+                    if (changed) void refresh();
                   }}
                 />
               )}
@@ -429,6 +455,9 @@ export default function CatalogWorkspace({
                                   setVariants(null);
                                 })
                               }
+                              onClickCapture={(e) => {
+                                editorTrigger.current = e.currentTarget;
+                              }}
                             >
                               Editar {p.name}
                             </AdminButton>
@@ -440,6 +469,9 @@ export default function CatalogWorkspace({
                                   setEditing(undefined);
                                 })
                               }
+                              onClickCapture={(e) => {
+                                editorTrigger.current = e.currentTarget;
+                              }}
                             >
                               Variantes de {p.name}
                             </AdminButton>
@@ -461,7 +493,16 @@ export default function CatalogWorkspace({
               {listing.items
                 .filter((p) => p.id === variants)
                 .map((p) => (
-                  <VariantEditor key={p.id} product={p} onSaved={refresh} />
+                  <VariantEditor
+                    key={p.id}
+                    product={p}
+                    call={call}
+                    onClose={(changed) => {
+                      restoreEditorFocus.current = true;
+                      setVariants(null);
+                      if (changed) void refresh();
+                    }}
+                  />
                 ))}
             </>
           ) : (

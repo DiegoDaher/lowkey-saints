@@ -1,190 +1,269 @@
 "use client";
-import AdminButton from "./AdminButton";
 import { useRef, useState } from "react";
-import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
+import {
+  variantInput,
+  variantUpdateInput,
+  type CatalogProduct,
+} from "../../../supabase/functions/_shared/contracts";
 import { saveVariant } from "@/modules/inventory/application/actions";
-
+import AdminModal from "./AdminModal";
+import AdminButton from "./AdminButton";
+type Variant = CatalogProduct["variants"][number];
+const empty = { size: "", color: "", colorHex: "#222222", sku: "" };
 export default function VariantEditor({
   product,
-  onSaved,
+  call,
+  onClose,
 }: {
   product: CatalogProduct;
-  onSaved: () => Promise<void>;
+  call: <T>(path: string, options?: RequestInit) => Promise<T>;
+  onClose: (changed: boolean) => void;
 }) {
-  const [selected, setSelected] = useState<
-    CatalogProduct["variants"][number] | null
-  >(null);
+  const [record, setRecord] = useState(product);
+  const [selected, setSelected] = useState<Variant | null>(null);
+  const [draft, setDraft] = useState(empty);
+  const [baseline, setBaseline] = useState(JSON.stringify(empty));
   const [busy, setBusy] = useState(false);
-  const locked = useRef(false);
   const [operation, setOperation] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [conflict, setConflict] = useState(false);
-  async function archive(variant: CatalogProduct["variants"][number]) {
-    if (locked.current) return;
-    locked.current = true;
-    setOperation(variant.id);
-    setBusy(true);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [pending, setPending] = useState<(() => void) | null>(null);
+  const locked = useRef(false);
+  const changed = useRef(false);
+  const form = useRef<HTMLFormElement>(null);
+  const dirty = JSON.stringify(draft) !== baseline;
+  function edit(v: Variant | null) {
+    const value = v
+      ? { size: v.size, color: v.color, colorHex: v.colorHex, sku: v.sku }
+      : empty;
+    setSelected(v);
+    setDraft(value);
+    setBaseline(JSON.stringify(value));
     setError("");
+    setNotice("");
+  }
+  function guard(next: () => void) {
+    if (dirty) setPending(() => next);
+    else next();
+  }
+  async function refresh() {
     try {
-      const result = await saveVariant(variant.id, {
-        version: variant.version,
-        isArchived: !variant.isArchived,
-      });
+      const fresh = await call<CatalogProduct>("/admin/products/" + product.id);
+      setRecord(fresh);
+      setRefreshFailed(false);
+      setConflict(false);
+      setError("");
+      edit(null);
+      return true;
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "No se pudo actualizar el listado."
+      );
+      setRefreshFailed(true);
+      return false;
+    }
+  }
+  async function mutate(variantId: string | null, input: unknown, op: string) {
+    if (locked.current || refreshFailed) return;
+    locked.current = true;
+    setBusy(true);
+    setOperation(op);
+    setError("");
+    setNotice("");
+    try {
+      const result = await saveVariant(variantId, input);
       if (!result.ok) {
         setError(result.message);
         setConflict(result.status === 409);
+        if ([401, 403].includes(result.status))
+          window.location.replace(
+            result.status === 401 ? "/401" : "/140210/sin-acceso"
+          );
         return;
       }
-      setSelected(null);
-      await onSaved();
+      changed.current = true;
+      edit(null);
+      if (await refresh())
+        setNotice("Variante guardada. Puedes continuar con otra.");
     } catch {
       setError("No se pudo guardar. Intenta de nuevo.");
     } finally {
       locked.current = false;
       setBusy(false);
+      setOperation("");
     }
   }
   return (
-    <section className="space-y-4 border p-4">
-      <h3 className="text-xl">Variantes de {product.name}</h3>
-      <p role="alert">{error}</p>
-      {conflict && (
+    <AdminModal
+      title={"Variantes de " + record.name}
+      dirty={dirty}
+      busy={busy}
+      onClose={() => onClose(changed.current)}
+      footer={
+        <p>
+          Las variantes nuevas comienzan con stock cero. Las existencias se
+          administran en Inventario.
+        </p>
+      }
+    >
+      {error && <p role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
+      {(conflict || refreshFailed) && (
         <AdminButton
+          type="button"
           disabled={busy}
-          onClick={() => {
-            if (
-              window.confirm(
-                "Recargar descartará la edición pendiente. ¿Continuar?"
-              )
-            )
-              void onSaved();
-          }}
+          onClick={() =>
+            guard(() => {
+              setBusy(true);
+              void refresh().finally(() => setBusy(false));
+            })
+          }
         >
-          Recargar variantes
+          {refreshFailed ? "Reintentar actualización" : "Recargar variantes"}
         </AdminButton>
       )}
-      <ul className="space-y-2">
-        {product.variants.map((v) => (
-          <li key={v.id} className="flex flex-wrap gap-3">
-            <span>
-              {v.size} / {v.color} · {v.sku} ·{" "}
-              {v.isArchived ? "Archivada" : "Activa"}
-            </span>
-            <AdminButton
-              disabled={busy}
-              onClick={() => {
-                setSelected(v);
-                setError("");
-              }}
-              className="underline"
-            >
-              Editar {v.sku}
-            </AdminButton>
-            <AdminButton
-              disabled={busy}
-              pending={busy && operation === v.id}
-              variant={v.isArchived ? "secondary" : "danger"}
-              onClick={() => void archive(v)}
-              className="underline"
-            >
-              {v.isArchived ? "Restaurar" : "Archivar"} {v.sku}
-            </AdminButton>
-          </li>
-        ))}
-      </ul>
-      <form
-        key={selected?.id + ":" + selected?.version}
-        className="grid gap-3 md:grid-cols-2"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (locked.current) return;
-          locked.current = true;
-          setOperation("save");
-          const form = e.currentTarget;
-          const f = new FormData(form);
-          setBusy(true);
-          setError("");
-          try {
-            const fields = {
-              size: String(f.get("size")),
-              color: String(f.get("color")),
-              colorHex: String(f.get("colorHex")),
-              sku: String(f.get("sku")),
-            };
-            const result = await saveVariant(
-              selected?.id ?? null,
-              selected
-                ? { ...fields, version: selected.version }
-                : { ...fields, productId: product.id }
-            );
-            if (!result.ok) {
-              setError(result.message);
-              setConflict(result.status === 409);
+      {pending && (
+        <div
+          className="admin-inline-confirm"
+          role="group"
+          aria-label="Cambios sin guardar"
+        >
+          <p>Hay cambios sin guardar en el formulario de la variante.</p>
+          <AdminButton type="button" onClick={() => setPending(null)}>
+            Seguir editando
+          </AdminButton>
+          <AdminButton
+            type="button"
+            variant="danger"
+            onClick={() => {
+              const next = pending;
+              setPending(null);
+              next();
+            }}
+          >
+            Descartar y continuar
+          </AdminButton>
+        </div>
+      )}
+      <div className="admin-variant-grid">
+        <section aria-label="Variantes existentes">
+          <h3>Variantes existentes</h3>
+          {!record.variants.length && (
+            <p>Esta prenda todavía no tiene variantes.</p>
+          )}
+          <ul className="space-y-3">
+            {record.variants.map((v) => (
+              <li key={v.id} className="admin-variant-card">
+                <div>
+                  <strong>
+                    {v.size} / {v.color}
+                  </strong>
+                  <p>
+                    {v.sku} · {v.isArchived ? "Archivada" : "Activa"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <AdminButton
+                    type="button"
+                    disabled={busy || refreshFailed || !!pending}
+                    onClick={() =>
+                      guard(() => {
+                        edit(v);
+                        requestAnimationFrame(() =>
+                          form.current?.querySelector("input")?.focus()
+                        );
+                      })
+                    }
+                  >
+                    Editar {v.sku}
+                  </AdminButton>
+                  <AdminButton
+                    type="button"
+                    disabled={busy || refreshFailed || !!pending}
+                    pending={busy && operation === v.id}
+                    variant={v.isArchived ? "secondary" : "danger"}
+                    onClick={() =>
+                      guard(
+                        () =>
+                          void mutate(
+                            v.id,
+                            { version: v.version, isArchived: !v.isArchived },
+                            v.id
+                          )
+                      )
+                    }
+                  >
+                    {v.isArchived ? "Restaurar" : "Archivar"} {v.sku}
+                  </AdminButton>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <form
+          ref={form}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (pending) return;
+            const input = selected
+              ? { ...draft, version: selected.version }
+              : { ...draft, productId: record.id };
+            const parsed = (
+              selected ? variantUpdateInput : variantInput
+            ).safeParse(input);
+            if (!parsed.success) {
+              setError(parsed.error.issues[0].message);
               return;
             }
-            form.reset();
-            setSelected(null);
-            await onSaved();
-          } catch {
-            setError("No se pudo guardar. Intenta de nuevo.");
-          } finally {
-            locked.current = false;
-            setBusy(false);
-          }
-        }}
-      >
-        <fieldset disabled={busy} className="contents">
-          <legend>
-            {selected ? "Editar variante" : "Nueva variante (stock inicial: 0)"}
-          </legend>
-          <label>
-            Talla
-            <input
-              name="size"
-              required
-              maxLength={30}
-              defaultValue={selected?.size}
-            />
-          </label>
-          <label>
-            Color
-            <input
-              name="color"
-              required
-              maxLength={60}
-              defaultValue={selected?.color}
-            />
-          </label>
-          <label>
-            Color visual
-            <input
-              name="colorHex"
-              type="color"
-              defaultValue={selected?.colorHex ?? "#222222"}
-            />
-          </label>
-          <label>
-            SKU
-            <input
-              name="sku"
-              required
-              maxLength={80}
-              defaultValue={selected?.sku}
-            />
-          </label>
-          <AdminButton
-            className="shop-button"
-            pending={busy && operation === "save"}
+            void mutate(selected?.id ?? null, parsed.data, "save");
+          }}
+        >
+          <fieldset
+            disabled={busy || refreshFailed || !!pending}
+            className="space-y-4"
           >
-            {selected ? "Guardar variante" : "Agregar variante"}
-          </AdminButton>
-          {selected && (
-            <AdminButton type="button" onClick={() => setSelected(null)}>
-              Cancelar edición
-            </AdminButton>
-          )}
-        </fieldset>
-      </form>
-    </section>
+            <legend>
+              {selected
+                ? "Editar variante"
+                : "Nueva variante (stock inicial: 0)"}
+            </legend>
+            {(["size", "color", "colorHex", "sku"] as const).map((key, i) => (
+              <label key={key}>
+                {["Talla", "Color", "Color visual", "SKU"][i]}
+                <input
+                  name={key}
+                  required
+                  maxLength={key === "size" ? 30 : key === "sku" ? 80 : 60}
+                  type={key === "colorHex" ? "color" : "text"}
+                  value={draft[key]}
+                  onChange={(e) =>
+                    setDraft((old) => ({ ...old, [key]: e.target.value }))
+                  }
+                />
+              </label>
+            ))}
+            <div className="flex flex-wrap gap-3">
+              <AdminButton
+                type="submit"
+                variant="primary"
+                pending={busy && operation === "save"}
+              >
+                {selected ? "Guardar variante" : "Agregar variante"}
+              </AdminButton>
+              {selected && (
+                <AdminButton
+                  type="button"
+                  onClick={() => guard(() => edit(null))}
+                >
+                  Cancelar edición
+                </AdminButton>
+              )}
+            </div>
+          </fieldset>
+        </form>
+      </div>
+    </AdminModal>
   );
 }

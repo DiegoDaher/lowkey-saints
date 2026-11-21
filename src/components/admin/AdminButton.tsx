@@ -1,4 +1,5 @@
 "use client";
+import Spinner from "@/components/ui/Spinner";
 import type { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";
 export default function AdminButton({
@@ -13,7 +14,10 @@ export default function AdminButton({
   variant?: "primary" | "secondary" | "danger";
 }) {
   const form = useFormStatus();
-  const busy = pending || (props.type !== "button" && form.pending);
+  const busy =
+    pending ||
+    props["aria-busy"] === true ||
+    (props.type !== "button" && form.pending);
   const style =
     variant ?? (className.includes("shop-button") ? "primary" : "secondary");
   return (
@@ -23,7 +27,7 @@ export default function AdminButton({
       aria-busy={busy || props["aria-busy"]}
       className={`admin-button admin-button--${style} ${className}`}
     >
-      {busy && <span className="admin-spinner" aria-hidden="true" />}
+      {busy && <Spinner announce={false} />}
       {children}
     </button>
   );

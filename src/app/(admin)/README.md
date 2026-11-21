@@ -126,3 +126,14 @@ El prefijo visible actual es `/140210`; `/admin` es interno y su acceso directo 
 - El foco global de campos se dibuja sobre su propio borde. Botones, enlaces, casillas y otros controles conservan un indicador de teclado visible. Las animaciones respetan movimiento reducido.
 - `tests/admin-dashboard.browser.spec.ts` comprueba escritorio/móvil, ausencia de consultas operativas en Inicio, carga y actualización de inventario, foco del campo y reintento de reposición. Las pruebas de navegación usan el prefijo público `/140210`; `/admin` sigue devolviendo 404.
 - No requiere migraciones, cambios de API ni nuevas variables de entorno. Se publica con el despliegue habitual de Next.js.
+
+### Editores en modal y pantallas de acceso
+
+- Login, recuperación y restablecimiento están agrupados en `(access)` y reutilizan `StoreShell`, con cabecera, navegación, pie y proveedores comerciales. El layout protegido sigue independiente; no cambian URLs ni reglas de acceso.
+- Nueva prenda y edición usan un modal con Datos esenciales, Fotografías, Detalles y medidas y Completa el look. El borrador se conserva entre pestañas; guardar mantiene el editor abierto y «Guardar y cerrar» vuelve al catálogo. La Server Action `saveProduct` devuelve el producto guardado en `data` para actualizar ID y versión sin duplicados.
+- El detalle se carga una vez por apertura; si falla, el guardado queda bloqueado hasta reintentar. Los complementos usan portada y nombre, límite de tres, búsqueda diferida y paginación. Los candidatos se consultan al abrir su pestaña, no al abrir el editor.
+- Variantes tiene su propio modal, con protección de cambios al cerrar o cambiar de variante. Después de una mutación se recarga el detalle; un fallo de esa lectura bloquea nuevas mutaciones hasta reintentar. El catálogo se refresca al cerrar únicamente si hubo guardados.
+- `AdminModal` usa un diálogo nativo con fondo inerte, scroll bloqueado, retorno de foco, Escape y confirmación de descarte dentro del mismo modal. La carga diferida tiene un fallback local para no suspender y recargar el catálogo completo.
+- Las subidas continúan al cambiar de pestaña. Guardar y cerrar están bloqueados durante subidas; los archivos con errores se pueden reintentar o quitar. Tras guardar, el editor multimedia se reinicia con las imágenes vinculadas para que una eliminación posterior no las trate como temporales.
+- Las pantallas y cargas iniciales conservan las estrellas de `Loader`; `Spinner` se comparte para botones y actualizaciones pequeñas. Ambos respetan movimiento reducido.
+- Regresión específica: `tests/admin-modals.browser.spec.ts`, `tests/media.browser.spec.ts`, `tests/inventory.browser.spec.ts` y `tests/loader.browser.spec.ts`. No requiere migraciones ni nuevas dependencias.

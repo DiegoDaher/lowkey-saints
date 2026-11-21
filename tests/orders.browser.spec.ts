@@ -139,6 +139,47 @@ test("manual transitions, history, conflicts, filter and pagination", async ({
   await expect.poll(() => lastQuery).toContain("page=1&status=CANCELLED");
 });
 
+for (const invalidActions of [undefined, null, "CONFIRMED"]) {
+  test(`invalid order actions (${invalidActions}) use order rules and respect explicit server actions`, async ({
+    page,
+  }) => {
+    let recovered = false;
+    const errors: Error[] = [];
+    page.on("pageerror", (error) => errors.push(error));
+    await page.route("**/functions/v1/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      let value: unknown = [];
+      if (path.endsWith("/admin/me"))
+        value = { id, role: "ADMIN", active: true };
+      if (path.endsWith("/admin/products")) value = { items: [] };
+      if (path.endsWith("/admin/orders"))
+        value = [
+          recovered
+            ? order("PENDING_PAYMENT", [])
+            : { ...order(), availableActions: invalidActions },
+        ];
+      await route.fulfill({
+        json: value,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
+    });
+    await login(page);
+    const card = page.getByRole("region", { name: "Pedido #123", exact: true });
+    await expect(card).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Confirmar pago" })
+    ).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Cancelar", exact: true })
+    ).toBeVisible();
+    recovered = true;
+    await page.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await expect(card.getByRole("button")).toHaveCount(0);
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+}
+
 test("expired reservations, refresh and server errors", async ({ page }) => {
   await page.clock.install();
   let current = {

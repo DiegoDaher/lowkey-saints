@@ -17,6 +17,7 @@ async function openEditor(page: Page) {
   await page
     .getByRole("button", { name: "Editar Prenda 1", exact: true })
     .click();
+  await page.getByRole("tab", { name: "Fotografías", exact: true }).click();
   await expect(page.locator('input[type="file"]')).toBeEnabled();
 }
 async function photo(name = "foto.jpg") {
@@ -53,7 +54,7 @@ test("multiple uploads compress, preserve order, recover failures and persist th
     .setInputFiles([await photo("primera.jpg"), await photo("segunda.jpg")]);
   await expect(page.getByText("1 de 2 fotografías listas")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Guardar producto", exact: true })
+    page.getByRole("button", { name: "Guardar y cerrar", exact: true })
   ).toBeDisabled();
   await page.getByRole("button", { name: "Reintentar" }).click();
   await expect(page.getByText("2 de 2 fotografías listas")).toBeVisible();
@@ -68,7 +69,7 @@ test("multiple uploads compress, preserve order, recover failures and persist th
     await request.get(fixture + "/test/inventory/state")
   ).json();
   await page
-    .getByRole("button", { name: "Guardar producto", exact: true })
+    .getByRole("button", { name: "Guardar y cerrar", exact: true })
     .click();
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   const saved = await (
@@ -81,13 +82,14 @@ test("multiple uploads compress, preserve order, recover failures and persist th
   await page
     .getByRole("button", { name: "Editar Prenda 1", exact: true })
     .click();
+  await page.getByRole("tab", { name: "Fotografías", exact: true }).click();
   await expect(page.getByText("2 de 2 fotografías listas")).toBeVisible();
   await page
     .getByRole("button", { name: "Quitar", exact: true })
     .first()
     .click();
   await page
-    .getByRole("button", { name: "Guardar producto", exact: true })
+    .getByRole("button", { name: "Guardar y cerrar", exact: true })
     .click();
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   const removed = await (
@@ -138,11 +140,11 @@ test("drop accepts files, rejects overflow, allows removing corrupt files and wa
     .last()
     .click();
   await expect(page.getByText("1 de 1 fotografías listas")).toBeVisible();
-  page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "Aplicar filtros" }).click();
-  await expect(page.getByText("1 de 1 fotografías listas")).toBeVisible();
-  page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.getByRole("button", { name: "Cerrar editor" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Hay cambios sin guardar" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Seguir editando" }).click();
   await expect(page.locator('input[type="file"]')).toBeVisible();
   await page.getByRole("button", { name: "Quitar", exact: true }).click();
   await expect
@@ -153,4 +155,52 @@ test("drop accepts files, rejects overflow, allows removing corrupt files and wa
     )
     .toBe(1);
   await expect(page.getByText("0 de 0 fotografías listas")).toBeVisible();
+});
+
+test("uploads survive tab navigation and saved photos are no longer temporary", async ({
+  page,
+  request,
+}) => {
+  await openEditor(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let uploads = 0;
+  await page.route("**/functions/v1/api/v1/admin/images", async (route) => {
+    uploads++;
+    await gate;
+    await route.continue();
+  });
+  await page.locator('input[type="file"]').setInputFiles(await photo());
+  await expect.poll(() => uploads).toBe(1);
+  await page
+    .getByRole("tab", { name: "Detalles y medidas", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Guardar cambios", exact: true })
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Cerrar editor" })
+  ).toBeDisabled();
+  release();
+  await page.getByRole("tab", { name: "Fotografías", exact: true }).click();
+  await expect(page.getByText("1 de 1 fotografías listas")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Guardar cambios", exact: true })
+    .click();
+  await expect(
+    page.getByText("Prenda guardada. Puedes seguir completándola.")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Quitar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Guardar y cerrar", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  const state = await (
+    await request.get(fixture + "/test/inventory/state")
+  ).json();
+  expect(uploads).toBe(1);
+  expect(state.mediaDeletes).toHaveLength(0);
+  expect(state.inventory[0].images).toHaveLength(0);
 });

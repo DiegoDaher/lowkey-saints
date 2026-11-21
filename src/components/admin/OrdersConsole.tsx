@@ -1,13 +1,17 @@
 "use client";
 import { AdminLoading } from "./AdminFeedback";
 import AdminButton from "./AdminButton";
-import Loader from "@/components/ui/Loader";
+import Spinner from "@/components/ui/Spinner";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { statusLabel } from "@/lib/status-label";
+import {
+  availableOrderActions,
+  orderStatuses,
+} from "../../../supabase/functions/_shared/orders/domain/OrderStateValidator";
 import type {
   AdminOrder,
   OrderAction,
@@ -72,9 +76,7 @@ function History({ orderId, revision }: { orderId: string; revision: number }) {
   return (
     <div className="space-y-2 pt-3">
       {error && <p role="alert">{error}</p>}
-      {!entries && !error && (
-        <Loader variant="inline" label="Cargando historial…" />
-      )}
+      {!entries && !error && <Spinner label="Cargando historial…" />}
       {entries && !entries.some((entry) => entry.source === "CHECKOUT") && (
         <p>
           Historial previo no disponible. Este pedido puede tener un historial
@@ -264,6 +266,17 @@ export default function OrdersConsole() {
       )}
       <div className="space-y-4" aria-busy={loading}>
         {orders.map((order) => {
+          const availableActions = Array.isArray(order.availableActions)
+            ? order.availableActions.filter((action) =>
+                Object.hasOwn(actions, action)
+              )
+            : orderStatuses.includes(order.status)
+              ? availableOrderActions(
+                  order.status,
+                  new Date(order.expiresAt),
+                  new Date(now)
+                )
+              : [];
           const expired =
             order.status === "PENDING_PAYMENT" &&
             new Date(order.expiresAt).getTime() <= now;
@@ -299,7 +312,7 @@ export default function OrdersConsole() {
                 {date(order.expiresAt)}
               </p>
               <div className="flex flex-wrap gap-3">
-                {order.availableActions
+                {availableActions
                   .filter((action) => !(action === "CONFIRMED" && expired))
                   .map((action) => (
                     <AdminButton
@@ -313,9 +326,7 @@ export default function OrdersConsole() {
                       {actions[action]}
                     </AdminButton>
                   ))}
-                {busy[order.id] && (
-                  <Loader variant="inline" label="Guardando…" />
-                )}
+                {busy[order.id] && <Spinner label="Guardando…" />}
               </div>
               <details
                 onToggle={(e) => {

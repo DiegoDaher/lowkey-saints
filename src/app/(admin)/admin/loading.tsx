@@ -1,8 +1,8 @@
-import { AdminLoading } from "@/components/admin/AdminFeedback";
+import Loader from "@/components/ui/Loader";
 export default function Loading() {
   return (
-    <div className="p-6 md:p-10">
-      <AdminLoading initial label="Cargando administración…" />
+    <div className="w-full" aria-busy="true">
+      <Loader variant="page" label="Cargando administración…" />
     </div>
   );
 }

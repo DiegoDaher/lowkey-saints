@@ -106,7 +106,7 @@ test("catalog creates products and variants, edits and restores without losing s
   await page.getByLabel("Precio de venta MXN").fill("250");
   await page.getByRole("checkbox", { name: "Camisetas", exact: true }).check();
   await page
-    .getByRole("button", { name: "Guardar producto", exact: true })
+    .getByRole("button", { name: "Guardar y cerrar", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Variantes de Prenda nueva", exact: true })
@@ -126,8 +126,9 @@ test("catalog creates products and variants, edits and restores without losing s
     .getByRole("button", { name: "Guardar variante", exact: true })
     .click();
   await expect(
-    page.getByText("XL / Azul · NUEVA-L-AZUL · Activa")
+    page.getByRole("dialog").getByText("XL / Azul", { exact: true })
   ).toBeVisible();
+  await page.getByRole("button", { name: "Cerrar editor" }).click();
   page.once("dialog", (d) => d.accept());
   await page
     .getByRole("button", { name: "Archivar Prenda 1", exact: true })

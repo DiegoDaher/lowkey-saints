@@ -1,5 +1,5 @@
 "use client";
-import Loader from "@/components/ui/Loader";
+import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import StoreAction from "@/components/ui/StoreAction";
@@ -30,9 +30,9 @@ export default function Unsubscribe() {
         }}
       >
         {busy ? (
-          <Loader
+          <Spinner
             announce={false}
-            variant="inline"
+
             label="Cancelando avisos…"
           />
         ) : (

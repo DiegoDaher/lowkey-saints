@@ -1,3 +1,5 @@
+import Loader from "@/components/ui/Loader";
+import Spinner from "@/components/ui/Spinner";
 import type { ReactNode } from "react";
 export function AdminHeading({
   title,
@@ -21,17 +23,10 @@ export function AdminLoading({
   label?: string;
   initial?: boolean;
 }) {
+  if (initial) return <Loader variant="section" label={label} />;
   return (
-    <div role="status" className={initial ? "admin-loading" : "admin-updating"}>
-      <span className="admin-spinner" aria-hidden="true" />
-      <span>{label}</span>
-      {initial && (
-        <div className="admin-skeleton" aria-hidden="true">
-          {[0, 1, 2, 3].map((n) => (
-            <div key={n} />
-          ))}
-        </div>
-      )}
+    <div className="admin-updating">
+      <Spinner label={label} />
     </div>
   );
 }

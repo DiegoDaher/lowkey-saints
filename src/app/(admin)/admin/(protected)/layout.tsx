@@ -9,7 +9,7 @@ export default async function AdminLayout({
 }) {
   const profile = await requireAdmin();
   return (
-    <div className="admin-shell">
+    <div className="admin-area admin-shell">
       <a className="admin-skip" href="#admin-content">
         Saltar al contenido
       </a>

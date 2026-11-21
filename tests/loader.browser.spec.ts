@@ -68,7 +68,7 @@ test("inline loader ends on failure and permits retry", async ({
   const busy = page.getByRole("button", { name: "Cancelando avisos…" });
   try {
     await expect(busy).toBeDisabled();
-    await expect(busy.locator(".saints-loader--inline")).toBeVisible();
+    await expect(busy.locator(".circle-loader")).toBeVisible();
     expect((await busy.boundingBox())?.height).toBe(before?.height);
     await page.screenshot({ path: testInfo.outputPath("loader-inline.png") });
   } finally {
