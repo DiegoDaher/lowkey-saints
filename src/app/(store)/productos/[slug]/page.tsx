@@ -1,6 +1,6 @@
 import ProductDetail from "@/components/shop/ProductDetail";
 import { api } from "@/lib/api";
-import type { CatalogProduct } from "../../../../supabase/functions/_shared/contracts";
+import type { CatalogProduct } from "../../../../../supabase/functions/_shared/contracts";
 export default async function Page({
   params,
 }: {

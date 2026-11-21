@@ -1,7 +1,9 @@
 "use client";
+import { useCategories } from "./useCategories";
+import { AdminLoading } from "./AdminFeedback";
+import AdminButton from "./AdminButton";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -22,15 +24,12 @@ import VariantEditor from "./VariantEditor";
 type Listing = { items: CatalogProduct[]; total: number };
 export default function CatalogWorkspace({
   mode,
-  isAdmin,
 }: {
   mode: "productos" | "inventario";
   isAdmin: boolean;
 }) {
   const [listing, setListing] = useState<Listing>({ items: [], total: 0 });
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
-    []
-  );
+  const { categories, categoriesError, retryCategories } = useCategories();
   const [filters, setFilters] = useState({
     q: "",
     category: "",
@@ -51,6 +50,8 @@ export default function CatalogWorkspace({
   const [revision, setRevision] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const bypass = useRef(false);
+  const saving = useRef(false);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
   const count = Object.keys(draft).length;
 
   const call = useCallback(
@@ -81,16 +82,12 @@ export default function CatalogWorkspace({
       ...filters,
       page: String(filters.page),
     });
-    void Promise.all([
-      call<Listing>("/admin/products?" + query, { signal: controller.signal }),
-      api<{ id: string; name: string }[]>("/categories", {
-        signal: controller.signal,
-      }),
-    ])
-      .then(([products, nextCategories]) => {
+    void call<Listing>("/admin/products?" + query, {
+      signal: controller.signal,
+    })
+      .then((products) => {
         if (controller.signal.aborted) return;
         setListing(products);
-        setCategories(nextCategories);
         setLoadFailed(false);
         setConflict(false);
         setLoading(false);
@@ -182,6 +179,8 @@ export default function CatalogWorkspace({
       );
   }
   async function save() {
+    if (saving.current) return false;
+    saving.current = true;
     setError("");
     setMessage("");
     setBusy(true);
@@ -200,6 +199,8 @@ export default function CatalogWorkspace({
       setError(e instanceof Error ? e.message : "No se pudo guardar");
       return false;
     } finally {
+      saving.current = false;
+      setArchivingId(null);
       setBusy(false);
     }
   }
@@ -229,6 +230,9 @@ export default function CatalogWorkspace({
       )
     )
       return;
+    if (saving.current) return;
+    saving.current = true;
+    setArchivingId(product.id);
     setBusy(true);
     setError("");
     try {
@@ -247,6 +251,8 @@ export default function CatalogWorkspace({
     } catch {
       setError("No se pudo guardar. Intenta de nuevo.");
     } finally {
+      saving.current = false;
+      setArchivingId(null);
       setBusy(false);
     }
   }
@@ -259,31 +265,23 @@ export default function CatalogWorkspace({
       <h1 className="font-display text-4xl">
         {mode === "productos" ? "Catálogo de productos" : "Inventario"}
       </h1>
-      <nav aria-label="Administración" className="flex flex-wrap gap-5">
-        <Link href="/140210">Administración</Link>
-        {isAdmin && (
-          <Link
-            href="/140210/productos"
-            aria-current={mode === "productos" ? "page" : undefined}
-          >
-            productos
-          </Link>
-        )}
-        <Link
-          href="/140210/inventario"
-          aria-current={mode === "inventario" ? "page" : undefined}
-        >
-          inventario
-        </Link>
-        <Link href="/140210/ordenes">ordenes</Link>
-      </nav>
       <p role="alert">{error}</p>
+      {categoriesError && (
+        <div role="alert">
+          No se pudieron cargar las categorías.{" "}
+          <AdminButton type="button" onClick={retryCategories}>
+            Reintentar categorías
+          </AdminButton>
+        </div>
+      )}
       <p role="status">{message}</p>
       {loadFailed && (
-        <button onClick={() => void refresh()}>Reintentar carga</button>
+        <AdminButton onClick={() => void refresh()}>
+          Reintentar carga
+        </AdminButton>
       )}
       {conflict && (
-        <button
+        <AdminButton
           onClick={() => {
             if (
               window.confirm(
@@ -298,7 +296,7 @@ export default function CatalogWorkspace({
           }}
         >
           Recargar datos
-        </button>
+        </AdminButton>
       )}
       <form
         key={JSON.stringify(filters)}
@@ -343,19 +341,27 @@ export default function CatalogWorkspace({
             <option value="all">Todos</option>
           </select>
         </label>
-        <button disabled={busy || loading} className="shop-button">
+        <AdminButton disabled={busy || loading} className="shop-button">
           Aplicar filtros
-        </button>
+        </AdminButton>
       </form>
-      {loading ? (
-        <p role="status">Cargando catálogo…</p>
-      ) : (
+      {loading && (
+        <AdminLoading
+          initial={!listing.items.length}
+          label={
+            listing.items.length
+              ? "Actualizando catálogo…"
+              : "Cargando catálogo…"
+          }
+        />
+      )}
+      {(!loading || listing.items.length > 0) && (
         <>
           {mode === "productos" ? (
             <>
-              <button
+              <AdminButton
                 className="shop-button"
-                disabled={busy}
+                disabled={busy || loading}
                 onClick={() =>
                   guard(() => {
                     setEditing(null);
@@ -364,7 +370,7 @@ export default function CatalogWorkspace({
                 }
               >
                 Nuevo producto
-              </button>
+              </AdminButton>
               {editing !== undefined && (
                 <ProductEditor
                   key={editing ?? "new"}
@@ -415,8 +421,8 @@ export default function CatalogWorkspace({
                         <td>{p.isArchived ? "Archivado" : "Activo"}</td>
                         <td>
                           <div className="flex flex-wrap gap-3">
-                            <button
-                              disabled={busy}
+                            <AdminButton
+                              disabled={busy || loading}
                               onClick={() =>
                                 guard(() => {
                                   setEditing(p.id);
@@ -425,9 +431,9 @@ export default function CatalogWorkspace({
                               }
                             >
                               Editar {p.name}
-                            </button>
-                            <button
-                              disabled={busy}
+                            </AdminButton>
+                            <AdminButton
+                              disabled={busy || loading}
                               onClick={() =>
                                 guard(() => {
                                   setVariants(p.id);
@@ -436,13 +442,15 @@ export default function CatalogWorkspace({
                               }
                             >
                               Variantes de {p.name}
-                            </button>
-                            <button
-                              disabled={busy}
+                            </AdminButton>
+                            <AdminButton
+                              disabled={busy || loading}
+                              pending={busy && archivingId === p.id}
+                              variant={p.isArchived ? "secondary" : "danger"}
                               onClick={() => guard(() => void archive(p))}
                             >
                               {p.isArchived ? "Restaurar" : "Archivar"} {p.name}
-                            </button>
+                            </AdminButton>
                           </div>
                         </td>
                       </tr>
@@ -460,22 +468,23 @@ export default function CatalogWorkspace({
             <>
               <div className="sticky top-0 z-10 flex flex-wrap items-center gap-4 border bg-white p-4">
                 <span>{count} / 100 celdas modificadas</span>
-                <button
+                <AdminButton
                   className="shop-button"
-                  disabled={!count || busy || conflict}
+                  disabled={!count || busy || loading || conflict}
+                  pending={busy}
                   onClick={() => void save()}
                 >
                   Guardar cambios
-                </button>
-                <button
-                  disabled={!count || busy}
+                </AdminButton>
+                <AdminButton
+                  disabled={!count || busy || loading}
                   onClick={() => {
                     setDraft({});
                     setError("");
                   }}
                 >
                   Descartar
-                </button>
+                </AdminButton>
                 {count >= 100 && (
                   <p>Guarda este lote antes de editar otras celdas.</p>
                 )}
@@ -485,7 +494,7 @@ export default function CatalogWorkspace({
                   key={p.id}
                   product={p}
                   draft={draft}
-                  disabled={busy || conflict}
+                  disabled={busy || loading || loadFailed || conflict}
                   onChange={(v, value) => {
                     setMessage("");
                     setDraft((old) => {
@@ -501,11 +510,13 @@ export default function CatalogWorkspace({
               ))}
             </>
           )}
-          {!listing.items.length && <p>No hay productos para estos filtros.</p>}
+          {!loadFailed && !listing.items.length && (
+            <p>No hay productos para estos filtros.</p>
+          )}
         </>
       )}
       <div className="flex gap-5">
-        <button
+        <AdminButton
           disabled={filters.page === 1 || busy || loading}
           onClick={() =>
             guard(() => {
@@ -517,9 +528,9 @@ export default function CatalogWorkspace({
           }
         >
           Anterior
-        </button>
+        </AdminButton>
         <span>Página {filters.page}</span>
-        <button
+        <AdminButton
           disabled={filters.page * 24 >= listing.total || busy || loading}
           onClick={() =>
             guard(() => {
@@ -531,7 +542,7 @@ export default function CatalogWorkspace({
           }
         >
           Siguiente
-        </button>
+        </AdminButton>
       </div>
       <dialog
         ref={dialog}
@@ -547,8 +558,8 @@ export default function CatalogWorkspace({
         </h2>
         <p>Guarda o descarta las existencias modificadas antes de continuar.</p>
         <div className="flex flex-wrap gap-4">
-          <button
-            disabled={busy || conflict}
+          <AdminButton
+            disabled={busy || loading || loadFailed || conflict}
             onClick={async () => {
               if (await save()) {
                 const next = pending;
@@ -558,9 +569,9 @@ export default function CatalogWorkspace({
             }}
           >
             Guardar y continuar
-          </button>
-          <button
-            disabled={busy}
+          </AdminButton>
+          <AdminButton
+            disabled={busy || loading}
             onClick={() => {
               setDraft({});
               setConflict(false);
@@ -571,10 +582,13 @@ export default function CatalogWorkspace({
             }}
           >
             Descartar y continuar
-          </button>
-          <button disabled={busy} onClick={() => setPending(null)}>
+          </AdminButton>
+          <AdminButton
+            disabled={busy || loading}
+            onClick={() => setPending(null)}
+          >
             Cancelar
-          </button>
+          </AdminButton>
         </div>
         {pending && error && <p role="alert">{error}</p>}
       </dialog>

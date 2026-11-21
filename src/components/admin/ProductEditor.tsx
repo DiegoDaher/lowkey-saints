@@ -1,4 +1,5 @@
 "use client";
+import AdminButton from "./AdminButton";
 import Loader from "@/components/ui/Loader";
 import { useEffect, useRef, useState } from "react";
 import ProductMediaEditor from "./ProductMediaEditor";
@@ -38,6 +39,7 @@ export default function ProductEditor({
   const [unresolved, setUnresolved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const saved = useRef(false);
+  const submitting = useRef(false);
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
@@ -63,9 +65,21 @@ export default function ProductEditor({
         event.stopPropagation();
       }
     };
+    const submit = (event: SubmitEvent) => {
+      if (
+        !(event.target as HTMLFormElement).closest("[data-product-editor]") &&
+        !saved.current &&
+        !window.confirm("Hay cambios sin guardar. ¿Descartarlos?")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    document.addEventListener("submit", submit, true);
     window.addEventListener("beforeunload", unload);
     document.addEventListener("click", navigate, true);
     return () => {
+      document.removeEventListener("submit", submit, true);
       window.removeEventListener("beforeunload", unload);
       document.removeEventListener("click", navigate, true);
     };
@@ -118,7 +132,7 @@ export default function ProductEditor({
     <section className="space-y-5 border bg-stone-50 p-6">
       <div className="flex justify-between">
         <h2 className="text-2xl">{p ? "Editar producto" : "Nuevo producto"}</h2>
-        <button
+        <AdminButton
           onClick={() => {
             if (
               !dirty ||
@@ -129,11 +143,11 @@ export default function ProductEditor({
           disabled={busy || uploading}
         >
           Cerrar
-        </button>
+        </AdminButton>
       </div>
       <p role="alert">{error}</p>
       {conflict && (
-        <button
+        <AdminButton
           type="button"
           disabled={busy}
           onClick={() => {
@@ -146,14 +160,16 @@ export default function ProductEditor({
           }}
         >
           Recargar producto
-        </button>
+        </AdminButton>
       )}
       <form
+        data-product-editor
         className="space-y-4"
         onChange={() => setDirty(true)}
         onSubmit={async (e) => {
           e.preventDefault();
-          if (busy || uploading || unresolved) return;
+          if (submitting.current || busy || uploading || unresolved) return;
+          submitting.current = true;
           const f = new FormData(e.currentTarget);
           setBusy(true);
           setError("");
@@ -204,6 +220,7 @@ export default function ProductEditor({
             setError((e as Error).message);
             setConflict(e instanceof ApiError && e.status === 409);
           } finally {
+            submitting.current = false;
             setBusy(false);
           }
         }}
@@ -326,17 +343,17 @@ export default function ProductEditor({
                     </label>
                   )
                 )}
-                <button
+                <AdminButton
                   type="button"
                   onClick={() =>
                     setMeasurements((old) => old.filter((_, j) => j !== i))
                   }
                 >
                   Quitar
-                </button>
+                </AdminButton>
               </div>
             ))}
-            <button
+            <AdminButton
               type="button"
               className="underline"
               onClick={() =>
@@ -347,7 +364,7 @@ export default function ProductEditor({
               }
             >
               Agregar talla
-            </button>
+            </AdminButton>
           </fieldset>
           <div className="grid gap-4 md:grid-cols-2">
             <label>
@@ -406,7 +423,7 @@ export default function ProductEditor({
                 </label>
               ))}
           </fieldset>
-          <button
+          <AdminButton
             disabled={busy || uploading || unresolved || complementsLoading}
             aria-busy={busy}
             className="shop-button"
@@ -416,7 +433,7 @@ export default function ProductEditor({
             ) : (
               "Guardar producto"
             )}
-          </button>
+          </AdminButton>
         </fieldset>
       </form>
     </section>

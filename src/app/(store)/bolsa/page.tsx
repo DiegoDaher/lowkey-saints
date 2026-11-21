@@ -7,7 +7,7 @@ import { useCart } from "@/components/shop/CartProvider";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
 import StoreAction from "@/components/ui/StoreAction";
-import type { OrderReceipt } from "../../../supabase/functions/_shared/contracts";
+import type { OrderReceipt } from "../../../../supabase/functions/_shared/contracts";
 export default function Bag() {
   const { items, quantity, clear } = useCart();
   const [busy, setBusy] = useState(false);

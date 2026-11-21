@@ -28,7 +28,7 @@ function order(
   };
 }
 async function login(page: Page) {
-  await page.goto("/admin/login");
+  await page.goto("/140210/login");
   await page
     .getByLabel("Correo", { exact: true })
     .fill("operator@example.test");
@@ -36,16 +36,18 @@ async function login(page: Page) {
     .getByLabel("Contraseña", { exact: true })
     .fill("test-only-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin$/);
-  await page.getByRole("link", { name: "ordenes", exact: true }).click();
+  await expect(page).toHaveURL(/\/140210$/);
+  await page.getByRole("link", { name: "Órdenes", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Pedidos", exact: true })
   ).toBeVisible();
 }
 
 test("orders route redirects anonymous visitors", async ({ page }) => {
-  await page.goto("/admin/ordenes");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  expect((await page.goto("/140210/ordenes"))?.status()).toBe(401);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Error 401"
+  );
 });
 
 test("manual transitions, history, conflicts, filter and pagination", async ({
@@ -186,6 +188,7 @@ test("expired reservations, refresh and server errors", async ({ page }) => {
     "Servicio temporalmente no disponible"
   );
   fail = false;
+  await page.clock.runFor(1501);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
 });

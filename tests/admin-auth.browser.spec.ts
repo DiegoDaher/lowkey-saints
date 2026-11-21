@@ -5,7 +5,7 @@ async function login(
   email = "operator@example.test",
   password = "test-only-password"
 ) {
-  await page.goto("/admin/login");
+  await page.goto("/140210/login");
   await page.getByLabel("Correo", { exact: true }).fill(email);
   await page.getByLabel("Contraseña", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
@@ -13,42 +13,40 @@ async function login(
 test("SSR protects the panel and operator sees only stock and orders", async ({
   page,
 }) => {
-  await page.goto("/admin");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  expect((await page.goto("/140210"))?.status()).toBe(401);
   await login(page);
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/140210$/, { timeout: 15000 });
   const nav = page.getByRole("navigation", {
     name: "Administración",
     exact: true,
   });
   await expect(
-    nav.getByRole("link", { name: "inventario", exact: true })
+    nav.getByRole("link", { name: "Inventario", exact: true })
   ).toBeVisible();
   await expect(
-    nav.getByRole("link", { name: "productos", exact: true })
+    nav.getByRole("link", { name: "Productos", exact: true })
   ).toHaveCount(0);
   await expect(
-    nav.getByRole("button", { name: "finanzas", exact: true })
+    nav.getByRole("link", { name: "Finanzas", exact: true })
   ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Cerrar sesión", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/admin\/login$/);
-  await page.goto("/admin/ordenes");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/140210\/login$/);
+  expect((await page.goto("/140210/ordenes"))?.status()).toBe(401);
 });
 test("ADMIN can navigate to catalog", async ({ page }) => {
   await login(page, "admin@example.test");
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/140210$/, { timeout: 15000 });
   const nav = page.getByRole("navigation", {
     name: "Administración",
     exact: true,
   });
   await expect(
-    nav.getByRole("link", { name: "productos", exact: true })
+    nav.getByRole("link", { name: "Productos", exact: true })
   ).toBeVisible();
   await expect(
-    nav.getByRole("button", { name: "finanzas", exact: true })
+    nav.getByRole("link", { name: "Finanzas", exact: true })
   ).toBeVisible();
 });
 test("proxy refreshes an expired session cookie before rendering", async ({
@@ -56,7 +54,7 @@ test("proxy refreshes an expired session cookie before rendering", async ({
   context,
 }) => {
   await login(page);
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/140210$/, { timeout: 15000 });
   const cookie = (await context.cookies()).find((value) =>
     value.name.endsWith("-auth-token")
   );
@@ -72,8 +70,8 @@ test("proxy refreshes an expired session cookie before rendering", async ({
         "base64-" + Buffer.from(JSON.stringify(session)).toString("base64url"),
     },
   ]);
-  await page.goto("/admin");
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 15000 });
+  await page.goto("/140210");
+  await expect(page).toHaveURL(/\/140210$/, { timeout: 15000 });
   const renewed = (await context.cookies()).find(
     (value) => value.name === cookie!.name
   )!;
@@ -92,8 +90,7 @@ for (const email of [
     await expect(page.getByRole("main").getByRole("alert")).toContainText(
       "No se pudo verificar"
     );
-    await page.goto("/admin");
-    await expect(page).toHaveURL(/\/admin\/login$/);
+    expect((await page.goto("/140210"))?.status()).toBe(401);
   });
 }
 test("invalid credentials remain on login", async ({ page }) => {
@@ -108,22 +105,21 @@ test("revoked session cannot render the next protected request", async ({
 }) => {
   const email = "revocation@example.test";
   await login(page, email);
-  await expect(page).toHaveURL(/\/admin$/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/140210$/, { timeout: 15000 });
   await request.post("http://127.0.0.1:55440/test/revoke", { data: { email } });
-  await page.goto("/admin/ordenes");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  expect((await page.goto("/140210/ordenes"))?.status()).toBe(401);
 });
 test("recovery, password confirmation, one-use link and login message", async ({
   page,
 }) => {
-  await page.goto("/admin/recuperar");
+  await page.goto("/140210/recuperar");
   await page.getByLabel("Correo").fill("unknown@example.test");
   await page.getByRole("button", { name: "Enviar instrucciones" }).click();
   await expect(page.getByRole("status")).toContainText("Si existe una cuenta");
   const url =
-    "/admin/auth/confirm?type=recovery&token_hash=valid-" + Date.now();
+    "/140210/auth/confirm?type=recovery&token_hash=valid-" + Date.now();
   await page.goto(url);
-  await expect(page).toHaveURL(/\/admin\/restablecer$/);
+  await expect(page).toHaveURL(/\/140210\/restablecer$/);
   await page
     .getByLabel("Contraseña", { exact: true })
     .fill("new-password-test");
@@ -146,7 +142,7 @@ test("recovery, password confirmation, one-use link and login message", async ({
   await page.goto(url);
   await expect(page).toHaveURL(/enlace=invalido/);
   await page.goto(
-    "/admin/auth/confirm?type=recovery&token_hash=expired&next=https://example.com"
+    "/140210/auth/confirm?type=recovery&token_hash=expired&next=https://example.com"
   );
-  await expect(page).toHaveURL(/\/admin\/login\?enlace=invalido$/);
+  await expect(page).toHaveURL(/\/140210\/login\?enlace=invalido$/);
 });

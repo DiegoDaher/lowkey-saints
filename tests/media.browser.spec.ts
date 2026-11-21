@@ -4,7 +4,7 @@ import sharp from "sharp";
 const fixture = "http://127.0.0.1:55440";
 test.setTimeout(60000);
 async function openEditor(page: Page) {
-  await page.goto("/admin/login");
+  await page.goto("/140210/login");
   await page
     .getByLabel("Correo", { exact: true })
     .fill("inventory-admin@example.test");
@@ -12,8 +12,8 @@ async function openEditor(page: Page) {
     .getByLabel("Contraseña", { exact: true })
     .fill("test-only-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin$/);
-  await page.goto("/admin/productos");
+  await expect(page).toHaveURL(/\/140210$/);
+  await page.goto("/140210/productos");
   await page
     .getByRole("button", { name: "Editar Prenda 1", exact: true })
     .click();

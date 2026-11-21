@@ -1,4 +1,5 @@
 "use client";
+import AdminButton from "./AdminButton";
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -242,15 +243,15 @@ export default function ProductMediaEditor({
               />
             )}
             {item.status === "error" && (
-              <button
+              <AdminButton
                 type="button"
                 disabled={blocked}
                 onClick={() => void process([item])}
               >
                 Reintentar
-              </button>
+              </AdminButton>
             )}
-            <button
+            <AdminButton
               type="button"
               disabled={blocked || i === 0}
               onClick={() => {
@@ -260,15 +261,15 @@ export default function ProductMediaEditor({
               }}
             >
               ← Mover
-            </button>
-            <button
+            </AdminButton>
+            <AdminButton
               type="button"
               disabled={blocked}
               className="ml-2 underline"
               onClick={() => remove(item)}
             >
               Quitar
-            </button>
+            </AdminButton>
           </div>
         ))}
       </div>

@@ -1,4 +1,5 @@
 "use client";
+import AdminButton from "./AdminButton";
 import { useActionState } from "react";
 import Link from "next/link";
 import { login, requestRecovery, resetPassword } from "@/server/auth/actions";
@@ -65,7 +66,11 @@ export default function AuthForm({
             />
           </label>
         )}
-        <button disabled={pending} aria-busy={pending} className="shop-button">
+        <AdminButton
+          disabled={pending}
+          aria-busy={pending}
+          className="shop-button"
+        >
           {pending
             ? "Procesando…"
             : mode === "login"
@@ -73,7 +78,7 @@ export default function AuthForm({
               : mode === "recover"
                 ? "Enviar instrucciones"
                 : "Guardar contraseña"}
-        </button>
+        </AdminButton>
       </form>
       {state.error && <p role="alert">{state.error}</p>}
       {state.message && <p role="status">{state.message}</p>}

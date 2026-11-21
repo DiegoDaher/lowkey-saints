@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import AdminButton from "./AdminButton";
+import { useRef, useState } from "react";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { saveVariant } from "@/modules/inventory/application/actions";
 
@@ -14,9 +15,14 @@ export default function VariantEditor({
     CatalogProduct["variants"][number] | null
   >(null);
   const [busy, setBusy] = useState(false);
+  const locked = useRef(false);
+  const [operation, setOperation] = useState("");
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   async function archive(variant: CatalogProduct["variants"][number]) {
+    if (locked.current) return;
+    locked.current = true;
+    setOperation(variant.id);
     setBusy(true);
     setError("");
     try {
@@ -34,6 +40,7 @@ export default function VariantEditor({
     } catch {
       setError("No se pudo guardar. Intenta de nuevo.");
     } finally {
+      locked.current = false;
       setBusy(false);
     }
   }
@@ -42,7 +49,7 @@ export default function VariantEditor({
       <h3 className="text-xl">Variantes de {product.name}</h3>
       <p role="alert">{error}</p>
       {conflict && (
-        <button
+        <AdminButton
           disabled={busy}
           onClick={() => {
             if (
@@ -54,7 +61,7 @@ export default function VariantEditor({
           }}
         >
           Recargar variantes
-        </button>
+        </AdminButton>
       )}
       <ul className="space-y-2">
         {product.variants.map((v) => (
@@ -63,7 +70,7 @@ export default function VariantEditor({
               {v.size} / {v.color} · {v.sku} ·{" "}
               {v.isArchived ? "Archivada" : "Activa"}
             </span>
-            <button
+            <AdminButton
               disabled={busy}
               onClick={() => {
                 setSelected(v);
@@ -72,14 +79,16 @@ export default function VariantEditor({
               className="underline"
             >
               Editar {v.sku}
-            </button>
-            <button
+            </AdminButton>
+            <AdminButton
               disabled={busy}
+              pending={busy && operation === v.id}
+              variant={v.isArchived ? "secondary" : "danger"}
               onClick={() => void archive(v)}
               className="underline"
             >
               {v.isArchived ? "Restaurar" : "Archivar"} {v.sku}
-            </button>
+            </AdminButton>
           </li>
         ))}
       </ul>
@@ -88,6 +97,9 @@ export default function VariantEditor({
         className="grid gap-3 md:grid-cols-2"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (locked.current) return;
+          locked.current = true;
+          setOperation("save");
           const form = e.currentTarget;
           const f = new FormData(form);
           setBusy(true);
@@ -116,6 +128,7 @@ export default function VariantEditor({
           } catch {
             setError("No se pudo guardar. Intenta de nuevo.");
           } finally {
+            locked.current = false;
             setBusy(false);
           }
         }}
@@ -159,13 +172,16 @@ export default function VariantEditor({
               defaultValue={selected?.sku}
             />
           </label>
-          <button className="shop-button">
+          <AdminButton
+            className="shop-button"
+            pending={busy && operation === "save"}
+          >
             {selected ? "Guardar variante" : "Agregar variante"}
-          </button>
+          </AdminButton>
           {selected && (
-            <button type="button" onClick={() => setSelected(null)}>
+            <AdminButton type="button" onClick={() => setSelected(null)}>
               Cancelar edición
-            </button>
+            </AdminButton>
           )}
         </fieldset>
       </form>

@@ -19,7 +19,7 @@ test("ADMIN saves prices and global threshold; unsaved edits are protected", asy
   page,
 }) => {
   await login(page);
-  await page.getByRole("link", { name: "finanzas", exact: true }).click();
+  await page.getByRole("link", { name: "Finanzas", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Finanzas y márgenes" })
   ).toBeVisible();
@@ -54,7 +54,7 @@ test("financial pages protect anonymous and OPERATOR access", async ({
   expect((await page.goto("/140210/finanzas"))?.status()).toBe(401);
   await login(page, "operator");
   await expect(
-    page.getByRole("link", { name: "finanzas", exact: true })
+    page.getByRole("link", { name: "Finanzas", exact: true })
   ).toHaveCount(0);
   await page.goto("/140210/finanzas");
   await expect(page).toHaveURL(/sin-acceso$/);

@@ -1,4 +1,6 @@
 "use client";
+import { AdminLoading } from "./AdminFeedback";
+import AdminButton from "./AdminButton";
 import Loader from "@/components/ui/Loader";
 
 import Link from "next/link";
@@ -119,34 +121,49 @@ export default function OrdersConsole() {
   const request = useRef<AbortController | null>(null);
   const pending = useRef(new Set<string>());
 
-  const load = useCallback(async () => {
-    request.current?.abort();
-    const controller = new AbortController();
-    request.current = controller;
-    setLoading(true);
-    try {
-      const value = await call<AdminOrder[]>(
-        `/admin/orders?page=${page}${filter ? `&status=${filter}` : ""}`,
-        { signal: controller.signal }
-      );
-      if (controller.signal.aborted) return;
-      setOrders(value);
-      setError("");
-      setRevision((v) => v + 1);
-      setNow(Date.now());
-    } catch (e) {
-      if (!controller.signal.aborted) setError((e as Error).message);
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
-    }
-  }, [page, filter]);
+  const refreshing = useRef(false);
+  const lastRefresh = useRef(0);
+  const load = useCallback(
+    async (background = false) => {
+      if (
+        background &&
+        (refreshing.current || Date.now() - lastRefresh.current < 1500)
+      )
+        return;
+      refreshing.current = true;
+      request.current?.abort();
+      const controller = new AbortController();
+      request.current = controller;
+      setLoading(true);
+      try {
+        const value = await call<AdminOrder[]>(
+          `/admin/orders?page=${page}${filter ? `&status=${filter}` : ""}`,
+          { signal: controller.signal }
+        );
+        if (controller.signal.aborted) return;
+        setOrders(value);
+        setError("");
+        setRevision((v) => v + 1);
+        setNow(Date.now());
+      } catch (e) {
+        if (!controller.signal.aborted) setError((e as Error).message);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          refreshing.current = false;
+          lastRefresh.current = Date.now();
+        }
+      }
+    },
+    [page, filter]
+  );
 
   useEffect(() => {
     // Fetches external data; defer the loading update to the async task.
-    void Promise.resolve().then(load);
+    void Promise.resolve().then(() => load());
     const refresh = () => {
       if (document.visibilityState === "visible" && pending.current.size === 0)
-        void load();
+        void load(true);
     };
     const poll = window.setInterval(refresh, 30_000);
     const tick = window.setInterval(() => setNow(Date.now()), 1_000);
@@ -195,7 +212,7 @@ export default function OrdersConsole() {
     return <p role="alert">Tu acceso cambió. Verificando permisos…</p>;
   return (
     <main className="admin-form mx-auto w-full max-w-7xl space-y-6 p-6 md:p-10">
-      <Link href="/140210" className="underline">
+      <Link prefetch={false} href="/140210" className="underline">
         Volver a administración
       </Link>
       <h1 className="font-display text-4xl">Pedidos</h1>
@@ -208,13 +225,13 @@ export default function OrdersConsole() {
           <label htmlFor="order-status">Estado</label>
           <select
             id="order-status"
-            disabled={saving}
+            disabled={saving || loading}
             className="ml-3 border p-2"
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
               setPage(1);
-              setOrders([]);
+              setLoading(true);
             }}
           >
             <option value="">Todos</option>
@@ -225,19 +242,19 @@ export default function OrdersConsole() {
             ))}
           </select>
         </div>
-        <button
+        <AdminButton
           className="shop-button"
           disabled={loading || saving}
           onClick={() => void load()}
         >
           Actualizar
-        </button>
+        </AdminButton>
       </div>
       {error && <p role="alert">{error}</p>}
       {loading ? (
-        <Loader
-          variant={orders.length ? "inline" : "section"}
-          label="Actualizando pedidos…"
+        <AdminLoading
+          initial={!orders.length}
+          label={orders.length ? "Actualizando pedidos…" : "Cargando pedidos…"}
         />
       ) : (
         <p role="status">{notice}</p>
@@ -245,7 +262,7 @@ export default function OrdersConsole() {
       {!loading && !error && orders.length === 0 && (
         <p>No hay pedidos en esta página.</p>
       )}
-      <div className="space-y-4">
+      <div className="space-y-4" aria-busy={loading}>
         {orders.map((order) => {
           const expired =
             order.status === "PENDING_PAYMENT" &&
@@ -285,14 +302,16 @@ export default function OrdersConsole() {
                 {order.availableActions
                   .filter((action) => !(action === "CONFIRMED" && expired))
                   .map((action) => (
-                    <button
+                    <AdminButton
                       key={action}
                       className="shop-button"
-                      disabled={busy[order.id]}
+                      disabled={busy[order.id] || loading}
+                      pending={busy[order.id]}
+                      variant={action === "CANCELLED" ? "danger" : "primary"}
                       onClick={() => void transition(order, action)}
                     >
                       {actions[action]}
-                    </button>
+                    </AdminButton>
                   ))}
                 {busy[order.id] && (
                   <Loader variant="inline" label="Guardando…" />
@@ -319,25 +338,25 @@ export default function OrdersConsole() {
         className="flex items-center gap-4"
         aria-label="Paginación de pedidos"
       >
-        <button
+        <AdminButton
           disabled={page === 1 || loading || saving}
           onClick={() => {
             setPage((v) => v - 1);
-            setOrders([]);
+            setLoading(true);
           }}
         >
           Anterior
-        </button>
+        </AdminButton>
         <span>Página {page}</span>
-        <button
+        <AdminButton
           disabled={orders.length < 50 || loading || saving}
           onClick={() => {
             setPage((v) => v + 1);
-            setOrders([]);
+            setLoading(true);
           }}
         >
           Siguiente
-        </button>
+        </AdminButton>
       </nav>
     </main>
   );

@@ -41,7 +41,7 @@ test("administrator creates both roles and handles duplicate email and mail fail
     });
   });
   await login(page);
-  await page.getByRole("link", { name: "usuarios", exact: true }).click();
+  await page.getByRole("link", { name: "Usuarios", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Usuarios", exact: true })
   ).toBeVisible();
@@ -62,7 +62,9 @@ test("administrator creates both roles and handles duplicate email and mail fail
     ).toBeVisible();
   }
   await expect(
-    page.getByRole("status").filter({ hasNotText: "Cargando usuarios" })
+    page
+      .getByRole("status")
+      .filter({ hasNotText: /Cargando usuarios|Actualizando usuarios/ })
   ).toContainText("no se pudo enviar");
   await page
     .getByLabel("Correo", { exact: true })
@@ -79,7 +81,9 @@ test("administrator creates both roles and handles duplicate email and mail fail
     .last()
     .click();
   await expect(
-    page.getByRole("status").filter({ hasNotText: "Cargando usuarios" })
+    page
+      .getByRole("status")
+      .filter({ hasNotText: /Cargando usuarios|Actualizando usuarios/ })
   ).toContainText("Solicitud de correo aceptada");
 });
 
@@ -131,7 +135,9 @@ for (const role of ["admin", "operator"]) {
     await page.getByRole("button", { name: "Guardar contraseña" }).click();
     await expect(page).toHaveURL(/\/140210\/login\?actualizada=1$/);
     await expect(
-      page.getByRole("status").filter({ hasNotText: "Cargando usuarios" })
+      page
+        .getByRole("status")
+        .filter({ hasNotText: /Cargando usuarios|Actualizando usuarios/ })
     ).toContainText("Contraseña actualizada");
   });
 }
@@ -143,7 +149,7 @@ test("operator cannot open Users; anonymous profile requires login", async ({
   expect(response?.status()).toBe(401);
   await login(page, "operator");
   await expect(
-    page.getByRole("link", { name: "usuarios", exact: true })
+    page.getByRole("link", { name: "Usuarios", exact: true })
   ).toHaveCount(0);
   await page.goto("/140210/usuarios");
   await expect(page).toHaveURL(/\/140210\/sin-acceso$/);
