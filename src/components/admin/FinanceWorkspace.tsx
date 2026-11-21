@@ -1,4 +1,7 @@
 "use client";
+import { useCategories } from "./useCategories";
+import { AdminLoading } from "./AdminFeedback";
+import AdminButton from "./AdminButton";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { api, ApiError } from "@/lib/api";
@@ -27,9 +30,7 @@ const currency = (value: string | null) =>
       }).format(Number(value));
 export default function FinanceWorkspace() {
   const [data, setData] = useState<FinancialDashboard | null>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
-    []
-  );
+  const { categories, categoriesError, retryCategories } = useCategories();
   const [filters, setFilters] = useState({
     q: "",
     category: "",
@@ -46,6 +47,7 @@ export default function FinanceWorkspace() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const [savingId, setSavingId] = useState<string | null>(null);
   const dirty = Object.keys(drafts).length > 0 || threshold !== null;
   useEffect(() => {
     if (!dirty) return;
@@ -91,19 +93,13 @@ export default function FinanceWorkspace() {
           ...filters,
           page: String(filters.page),
         });
-        const [next, cats] = await Promise.all([
-          api<FinancialDashboard>(
-            "/admin/finances/dashboard?" + query,
-            { signal: controller.signal },
-            auth.session.access_token
-          ),
-          api<{ id: string; name: string }[]>("/categories", {
-            signal: controller.signal,
-          }),
-        ]);
+        const next = await api<FinancialDashboard>(
+          "/admin/finances/dashboard?" + query,
+          { signal: controller.signal },
+          auth.session.access_token
+        );
         if (!controller.signal.aborted) {
           setData(next);
-          setCategories(cats);
           setError("");
         }
       } catch (e) {
@@ -134,7 +130,6 @@ export default function FinanceWorkspace() {
   function changeFilters(next: typeof filters) {
     if (!discard()) return;
     setLoading(true);
-    setData(null);
     setMessage("");
     setFilters(next);
   }
@@ -158,6 +153,7 @@ export default function FinanceWorkspace() {
   function save(row: FinancialRow) {
     const draft = drafts[row.id];
     if (!draft) return;
+    setSavingId(row.id);
     startTransition(async () => {
       setError("");
       setMessage("");
@@ -189,7 +185,7 @@ export default function FinanceWorkspace() {
       data-finance-workspace
       className="admin-form mx-auto w-full max-w-7xl space-y-6 p-6 md:p-10"
     >
-      <Link href="/140210" className="underline">
+      <Link prefetch={false} href="/140210" className="underline">
         Administración
       </Link>
       <h1 className="font-display text-4xl">Finanzas y márgenes</h1>
@@ -198,8 +194,16 @@ export default function FinanceWorkspace() {
         impuestos, comisiones ni ventas históricas.
       </p>
       <p role="alert">{error}</p>
+      {categoriesError && (
+        <div role="alert">
+          No se pudieron cargar las categorías.{" "}
+          <AdminButton type="button" onClick={retryCategories}>
+            Reintentar categorías
+          </AdminButton>
+        </div>
+      )}
       <p role="status">{message}</p>
-      <button
+      <AdminButton
         type="button"
         disabled={pending || loading}
         className="underline"
@@ -211,7 +215,7 @@ export default function FinanceWorkspace() {
         }}
       >
         Recargar datos
-      </button>
+      </AdminButton>
       <fieldset disabled={pending || loading} className="flex flex-wrap gap-4">
         <legend>Filtrar productos</legend>
         <form
@@ -225,7 +229,7 @@ export default function FinanceWorkspace() {
             Buscar por nombre
             <input name="q" defaultValue={filters.q} maxLength={200} />
           </label>
-          <button>Buscar</button>
+          <AdminButton>Buscar</AdminButton>
         </form>
         <label>
           Categoría
@@ -257,7 +261,12 @@ export default function FinanceWorkspace() {
           </select>
         </label>
       </fieldset>
-      {loading && <p role="status">Cargando indicadores…</p>}
+      {loading && (
+        <AdminLoading
+          initial={!data}
+          label={data ? "Actualizando indicadores…" : "Cargando indicadores…"}
+        />
+      )}
       {data && (
         <>
           <section
@@ -292,6 +301,7 @@ export default function FinanceWorkspace() {
             onSubmit={(e) => {
               e.preventDefault();
               if (threshold === null) return;
+              setSavingId("threshold");
               startTransition(async () => {
                 setError("");
                 try {
@@ -334,12 +344,13 @@ export default function FinanceWorkspace() {
                 }}
               />
             </label>
-            <button
+            <AdminButton
+              pending={pending && savingId === "threshold"}
               disabled={pending || loading || threshold === null}
               className="shop-button"
             >
               Guardar umbral
-            </button>
+            </AdminButton>
             <p>Margen inferior al umbral: ámbar. Pérdida: rojo.</p>
           </form>
           <div className="overflow-x-auto">
@@ -426,12 +437,13 @@ export default function FinanceWorkspace() {
                           save(row);
                         }}
                       >
-                        <button
+                        <AdminButton
+                          pending={pending && savingId === row.id}
                           disabled={pending || loading || !drafts[row.id]}
                           className="shop-button"
                         >
                           Guardar
-                        </button>
+                        </AdminButton>
                       </form>
                     </td>
                   </tr>
@@ -441,25 +453,25 @@ export default function FinanceWorkspace() {
           </div>
           {!data.total && <p>No hay productos para estos filtros.</p>}
           <nav aria-label="Paginación financiera" className="flex gap-5">
-            <button
+            <AdminButton
               disabled={pending || loading || filters.page === 1}
               onClick={() =>
                 changeFilters({ ...filters, page: filters.page - 1 })
               }
             >
               Anterior
-            </button>
+            </AdminButton>
             <span>
               Página {filters.page} de {Math.max(1, Math.ceil(data.total / 50))}
             </span>
-            <button
+            <AdminButton
               disabled={pending || loading || filters.page * 50 >= data.total}
               onClick={() =>
                 changeFilters({ ...filters, page: filters.page + 1 })
               }
             >
               Siguiente
-            </button>
+            </AdminButton>
           </nav>
         </>
       )}

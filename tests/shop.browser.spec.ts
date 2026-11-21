@@ -150,10 +150,9 @@ for (const retry of [false, true]) {
     });
   });
 }
-test("admin routes redirect anonymous visitors", async ({ page }) => {
-  await page.goto("/admin");
-  await expect(page).toHaveURL(/admin\/login/);
-  await expect(
-    page.getByRole("heading", { name: "Acceso al equipo" })
-  ).toBeVisible();
+test("admin routes reject anonymous visitors", async ({ page }) => {
+  expect((await page.goto("/140210"))?.status()).toBe(401);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Error 401"
+  );
 });

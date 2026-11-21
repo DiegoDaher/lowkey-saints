@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 const fixture = "http://127.0.0.1:55440";
 test.setTimeout(60000);
 async function login(page: Page, role = "admin") {
-  await page.goto("/admin/login");
+  await page.goto("/140210/login");
   await page
     .getByLabel("Correo", { exact: true })
     .fill(`inventory-${role}@example.test`);
@@ -11,7 +11,7 @@ async function login(page: Page, role = "admin") {
     .getByLabel("Contraseña", { exact: true })
     .fill("test-only-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/140210$/);
 }
 test.beforeEach(async ({ request }) => {
   await request.post(fixture + "/test/inventory/reset");
@@ -22,7 +22,7 @@ test("multiple product matrices save only changed cells through a server action"
   request,
 }) => {
   await login(page, "operator");
-  await page.getByRole("link", { name: "inventario", exact: true }).click();
+  await page.getByRole("link", { name: "Inventario", exact: true }).click();
   await page.getByLabel("Prenda 1: M / Negro").fill("8");
   await page.getByLabel("Prenda 2: M / Negro").fill("0");
   await page
@@ -58,7 +58,7 @@ test("navigation asks to resolve drafts and conflicts preserve values", async ({
   request,
 }) => {
   await login(page);
-  await page.goto("/admin/inventario");
+  await page.goto("/140210/inventario");
   await page.getByLabel("Prenda 1: M / Negro").fill("");
   await page
     .getByRole("button", { name: "Guardar cambios", exact: true })
@@ -88,16 +88,16 @@ test("navigation asks to resolve drafts and conflicts preserve values", async ({
   await page.getByRole("button", { name: "Recargar datos" }).click();
   await expect(page.getByLabel("Prenda 1: M / Negro")).toHaveValue("3");
   await page.getByLabel("Prenda 1: M / Negro").fill("6");
-  await page.getByRole("link", { name: "productos", exact: true }).click();
+  await page.getByRole("link", { name: "Productos", exact: true }).click();
   await page.getByRole("button", { name: "Descartar y continuar" }).click();
-  await expect(page).toHaveURL(/\/admin\/productos$/);
+  await expect(page).toHaveURL(/\/140210\/productos$/);
 });
 
 test("catalog creates products and variants, edits and restores without losing stock", async ({
   page,
 }) => {
   await login(page);
-  await page.goto("/admin/productos");
+  await page.goto("/140210/productos");
   await page
     .getByRole("button", { name: "Nuevo producto", exact: true })
     .click();
@@ -106,7 +106,7 @@ test("catalog creates products and variants, edits and restores without losing s
   await page.getByLabel("Precio de venta MXN").fill("250");
   await page.getByRole("checkbox", { name: "Camisetas", exact: true }).check();
   await page
-    .getByRole("button", { name: "Guardar producto", exact: true })
+    .getByRole("button", { name: "Guardar y cerrar", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Variantes de Prenda nueva", exact: true })
@@ -126,8 +126,9 @@ test("catalog creates products and variants, edits and restores without losing s
     .getByRole("button", { name: "Guardar variante", exact: true })
     .click();
   await expect(
-    page.getByText("XL / Azul · NUEVA-L-AZUL · Activa")
+    page.getByRole("dialog").getByText("XL / Azul", { exact: true })
   ).toBeVisible();
+  await page.getByRole("button", { name: "Cerrar editor" }).click();
   page.once("dialog", (d) => d.accept());
   await page
     .getByRole("button", { name: "Archivar Prenda 1", exact: true })
@@ -140,7 +141,7 @@ test("catalog creates products and variants, edits and restores without losing s
   await page
     .getByRole("button", { name: "Restaurar Prenda 1", exact: true })
     .click();
-  await page.getByRole("link", { name: "inventario", exact: true }).click();
+  await page.getByRole("link", { name: "Inventario", exact: true }).click();
   await expect(page.getByLabel("Prenda 1: M / Negro")).toHaveValue("3");
 });
 
@@ -148,10 +149,10 @@ test("operator cannot open product administration and mobile matrices remain usa
   page,
 }) => {
   await login(page, "operator");
-  await page.goto("/admin/productos");
-  await expect(page).toHaveURL(/\/admin\/sin-acceso$/);
+  await page.goto("/140210/productos");
+  await expect(page).toHaveURL(/\/140210\/sin-acceso$/);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/admin/inventario");
+  await page.goto("/140210/inventario");
   await expect(page.getByLabel("Prenda 1: M / Negro")).toBeVisible();
   await page.getByLabel("Prenda 1: M / Negro").focus();
   await page.keyboard.press("Tab");

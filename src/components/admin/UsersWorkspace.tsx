@@ -1,4 +1,6 @@
 "use client";
+import { AdminLoading } from "./AdminFeedback";
+import AdminButton from "./AdminButton";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +22,7 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
+  const [operation, setOperation] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const call = useCallback(
@@ -47,7 +50,10 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
       signal: controller.signal,
     })
       .then((value) => {
-        if (!controller.signal.aborted) setListing(value);
+        if (!controller.signal.aborted) {
+          setListing(value);
+          setError("");
+        }
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError((e as Error).message);
@@ -62,6 +68,9 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
     if (locked.current) return false;
     locked.current = true;
     setBusy(true);
+    setOperation(
+      path === "/admin/roles" ? path + "/" + (body as { id: string }).id : path
+    );
     setError("");
     setMessage("");
     try {
@@ -79,12 +88,13 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
     } finally {
       locked.current = false;
       setBusy(false);
+      setOperation("");
     }
   }
 
   return (
     <main className="admin-form mx-auto max-w-7xl space-y-6 p-6 md:p-10">
-      <Link className="underline" href="/140210">
+      <Link prefetch={false} className="underline" href="/140210">
         Volver a administración
       </Link>
       <h1 className="font-display text-4xl">Usuarios</h1>
@@ -125,14 +135,40 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
               <option>ADMIN</option>
             </select>
           </label>
-          <button className="shop-button" disabled={busy || loading}>
+          <AdminButton
+            pending={busy && operation === "/admin/users"}
+            className="shop-button"
+            disabled={busy || loading}
+          >
             Crear usuario
-          </button>
+          </AdminButton>
         </form>
       </section>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <div role="alert">
+          {error}{" "}
+          <AdminButton
+            disabled={busy || loading}
+            onClick={() => {
+              setLoading(true);
+              setVersion((v) => v + 1);
+            }}
+          >
+            Reintentar carga
+          </AdminButton>
+        </div>
+      )}
       {message && <p role="status">{message}</p>}
-      {loading && <p role="status">Cargando usuarios…</p>}
+      {loading && (
+        <AdminLoading
+          initial={!listing.users.length}
+          label={
+            listing.users.length
+              ? "Actualizando usuarios…"
+              : "Cargando usuarios…"
+          }
+        />
+      )}
       <section
         className="space-y-4"
         aria-label="Usuarios existentes"
@@ -180,15 +216,19 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
                 />{" "}
                 Activo
               </label>
-              <button
+              <AdminButton
                 className="shop-button"
+                pending={busy && operation === "/admin/roles/" + user.id}
                 disabled={user.id === ownId || busy || loading}
               >
                 Guardar permisos
-              </button>
+              </AdminButton>
             </form>
-            <button
+            <AdminButton
               className="underline"
+              pending={
+                busy && operation === `/admin/users/${user.id}/password-link`
+              }
               disabled={!user.active || busy || loading}
               onClick={() => {
                 if (
@@ -200,12 +240,12 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
               }}
             >
               Enviar enlace para establecer contraseña
-            </button>
+            </AdminButton>
           </article>
         ))}
       </section>
       <nav className="flex gap-4" aria-label="Paginación de usuarios">
-        <button
+        <AdminButton
           disabled={busy || loading || page === 1}
           onClick={() => {
             setLoading(true);
@@ -214,9 +254,9 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
           }}
         >
           Anterior
-        </button>
+        </AdminButton>
         <span>Página {page}</span>
-        <button
+        <AdminButton
           disabled={busy || loading || !listing.hasMore}
           onClick={() => {
             setLoading(true);
@@ -225,7 +265,7 @@ export default function UsersWorkspace({ ownId }: { ownId: string }) {
           }}
         >
           Siguiente
-        </button>
+        </AdminButton>
       </nav>
     </main>
   );

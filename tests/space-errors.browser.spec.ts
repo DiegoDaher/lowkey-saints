@@ -109,8 +109,8 @@ test("expired client session exits the panel to 401", async ({
 }) => {
   await login(page, "admin@example.test");
   await context.clearCookies();
-  await page.getByRole("button", { name: "finanzas", exact: true }).click();
-  await expect(page).toHaveURL(/\/401$/);
+  await page.getByRole("link", { name: "Finanzas", exact: true }).click();
+  await expect(page).toHaveURL(/\/140210\/finanzas$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "Error 401"
   );

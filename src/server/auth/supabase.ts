@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect, unauthorized, unstable_rethrow } from "next/navigation";
@@ -33,7 +34,7 @@ export async function supabaseServer() {
   });
 }
 
-export async function getAdminProfile(): Promise<AdminProfile> {
+export const getAdminProfile = cache(async (): Promise<AdminProfile> => {
   const client = await supabaseServer();
   const {
     data: { user },
@@ -57,7 +58,7 @@ export async function getAdminProfile(): Promise<AdminProfile> {
   )
     throw new ApiError(403, "No tienes acceso administrativo");
   return profile;
-}
+});
 
 export async function requireAdmin(permission: AdminPermission = "session") {
   let profile: AdminProfile;

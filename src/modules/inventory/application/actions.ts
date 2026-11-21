@@ -14,6 +14,7 @@ import {
   type AdminPermission,
 } from "../../../../supabase/functions/_shared/admin-access";
 import {
+  type CatalogProduct,
   archiveInput,
   id,
   productInput,
@@ -22,12 +23,13 @@ import {
   variantUpdateInput,
 } from "../../../../supabase/functions/_shared/contracts";
 
-async function mutate(
+async function mutate<T = never>(
   permission: AdminPermission,
   path: string,
   method: string,
   schema: z.ZodType,
-  input: unknown
+  input: unknown,
+  includeData = false
 ) {
   try {
     const profile = await getAdminProfile();
@@ -39,7 +41,7 @@ async function mutate(
       data: { session },
     } = await client.auth.getSession();
     if (!session) throw new ApiError(401, "Inicia sesión de nuevo");
-    await api(
+    const data = await api<T>(
       path,
       { method, body: JSON.stringify(value) },
       session.access_token
@@ -49,7 +51,7 @@ async function mutate(
     revalidatePath("/140210/productos");
     revalidatePath("/admin/productos");
     revalidatePath("/admin/inventario");
-    return { ok: true as const };
+    return { ok: true as const, ...(includeData ? { data } : {}) };
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof z.ZodError)
@@ -73,12 +75,13 @@ async function mutate(
 export async function saveProduct(productId: string | null, input: unknown) {
   if (productId !== null && !id.safeParse(productId).success)
     return { ok: false as const, status: 400, message: "Producto inválido" };
-  return mutate(
+  return mutate<CatalogProduct>(
     "catalog:write",
     "/admin/products" + (productId ? "/" + productId : ""),
     productId ? "PUT" : "POST",
     productInput,
-    input
+    input,
+    true
   );
 }
 export async function setProductArchived(productId: string, input: unknown) {

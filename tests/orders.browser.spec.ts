@@ -28,7 +28,7 @@ function order(
   };
 }
 async function login(page: Page) {
-  await page.goto("/admin/login");
+  await page.goto("/140210/login");
   await page
     .getByLabel("Correo", { exact: true })
     .fill("operator@example.test");
@@ -36,16 +36,18 @@ async function login(page: Page) {
     .getByLabel("Contraseña", { exact: true })
     .fill("test-only-password");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin$/);
-  await page.getByRole("link", { name: "ordenes", exact: true }).click();
+  await expect(page).toHaveURL(/\/140210$/);
+  await page.getByRole("link", { name: "Órdenes", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Pedidos", exact: true })
   ).toBeVisible();
 }
 
 test("orders route redirects anonymous visitors", async ({ page }) => {
-  await page.goto("/admin/ordenes");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  expect((await page.goto("/140210/ordenes"))?.status()).toBe(401);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Error 401"
+  );
 });
 
 test("manual transitions, history, conflicts, filter and pagination", async ({
@@ -137,6 +139,47 @@ test("manual transitions, history, conflicts, filter and pagination", async ({
   await expect.poll(() => lastQuery).toContain("page=1&status=CANCELLED");
 });
 
+for (const invalidActions of [undefined, null, "CONFIRMED"]) {
+  test(`invalid order actions (${invalidActions}) use order rules and respect explicit server actions`, async ({
+    page,
+  }) => {
+    let recovered = false;
+    const errors: Error[] = [];
+    page.on("pageerror", (error) => errors.push(error));
+    await page.route("**/functions/v1/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      let value: unknown = [];
+      if (path.endsWith("/admin/me"))
+        value = { id, role: "ADMIN", active: true };
+      if (path.endsWith("/admin/products")) value = { items: [] };
+      if (path.endsWith("/admin/orders"))
+        value = [
+          recovered
+            ? order("PENDING_PAYMENT", [])
+            : { ...order(), availableActions: invalidActions },
+        ];
+      await route.fulfill({
+        json: value,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
+    });
+    await login(page);
+    const card = page.getByRole("region", { name: "Pedido #123", exact: true });
+    await expect(card).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Confirmar pago" })
+    ).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Cancelar", exact: true })
+    ).toBeVisible();
+    recovered = true;
+    await page.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await expect(card.getByRole("button")).toHaveCount(0);
+    await expect(card.getByRole("alert")).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+}
+
 test("expired reservations, refresh and server errors", async ({ page }) => {
   await page.clock.install();
   let current = {
@@ -186,6 +229,7 @@ test("expired reservations, refresh and server errors", async ({ page }) => {
     "Servicio temporalmente no disponible"
   );
   fail = false;
+  await page.clock.runFor(1501);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
 });

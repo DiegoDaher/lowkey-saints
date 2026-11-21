@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow_Condensed, Inter, Kaushan_Script } from "next/font/google";
-import AnnouncementBar from "@/components/AnnouncementBar";
-import { CatalogFilterProvider } from "@/components/catalog/CatalogFilterProvider";
-import Footer from "@/components/Footer";
-import Header from "@/components/Header";
 import "./globals.css";
 import "./store-interactions.css";
-import { CartProvider } from "@/components/shop/CartProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -42,16 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-scroll-behavior="smooth"
       className={`${inter.variable} ${barlowCondensed.variable} ${kaushanScript.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
-        <CartProvider>
-          <CatalogFilterProvider>
-            <AnnouncementBar />
-            <Header />
-            {children}
-            <Footer />
-          </CatalogFilterProvider>
-        </CartProvider>
-      </body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

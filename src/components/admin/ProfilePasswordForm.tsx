@@ -1,4 +1,5 @@
 "use client";
+import AdminButton from "./AdminButton";
 import { useActionState } from "react";
 import { changePassword } from "@/server/auth/actions";
 
@@ -44,9 +45,13 @@ export default function ProfilePasswordForm() {
             maxLength={128}
           />
         </label>
-        <button className="shop-button" disabled={pending} aria-busy={pending}>
+        <AdminButton
+          className="shop-button"
+          disabled={pending}
+          aria-busy={pending}
+        >
           {pending ? "Guardando…" : "Guardar contraseña"}
-        </button>
+        </AdminButton>
       </form>
       {state.error && <p role="alert">{state.error}</p>}
     </section>

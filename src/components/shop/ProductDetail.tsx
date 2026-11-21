@@ -1,5 +1,5 @@
 "use client";
-import Loader from "@/components/ui/Loader";
+import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import Link from "next/link";
 import ProductImage from "@/components/catalog/ProductImage";
@@ -145,9 +145,9 @@ export default function ProductDetail({
               </label>
               <StoreAction type="submit" disabled={busy} aria-busy={busy}>
                 {busy ? (
-                  <Loader
+                  <Spinner
                     announce={false}
-                    variant="inline"
+
                     label="Registrando…"
                   />
                 ) : (

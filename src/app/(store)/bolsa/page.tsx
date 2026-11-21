@@ -1,5 +1,5 @@
 "use client";
-import Loader from "@/components/ui/Loader";
+import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import { statusLabel } from "@/lib/status-label";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { useCart } from "@/components/shop/CartProvider";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
 import StoreAction from "@/components/ui/StoreAction";
-import type { OrderReceipt } from "../../../supabase/functions/_shared/contracts";
+import type { OrderReceipt } from "../../../../supabase/functions/_shared/contracts";
 export default function Bag() {
   const { items, quantity, clear } = useCart();
   const [busy, setBusy] = useState(false);
@@ -153,9 +153,9 @@ export default function Bag() {
                 className="w-full sm:w-auto"
               >
                 {busy ? (
-                  <Loader
+                  <Spinner
                     announce={false}
-                    variant="inline"
+
                     label="Creando pedido…"
                   />
                 ) : (

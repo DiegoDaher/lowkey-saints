@@ -1,24 +1,28 @@
 import { requireAdmin } from "@/server/auth/supabase";
 import { logout } from "@/server/auth/actions";
-import Link from "next/link";
-
+import AdminNavigation from "@/components/admin/AdminNavigation";
+import AdminButton from "@/components/admin/AdminButton";
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  const profile = await requireAdmin();
   return (
-    <>
-      <div className="mx-auto flex w-full max-w-7xl justify-end gap-6 px-6 pt-4">
-        <Link href="/140210/perfil" className="underline">
-          Mi perfil
-        </Link>
-        <form action={logout}>
-          <button className="underline">Cerrar sesión</button>
-        </form>
+    <div className="admin-area admin-shell">
+      <a className="admin-skip" href="#admin-content">
+        Saltar al contenido
+      </a>
+      <AdminNavigation role={profile.role} />
+      <div className="admin-content" id="admin-content" tabIndex={-1}>
+        <div className="admin-topbar">
+          <span>Espacio de trabajo</span>
+          <form action={logout}>
+            <AdminButton>Cerrar sesión</AdminButton>
+          </form>
+        </div>
+        {children}
       </div>
-      {children}
-    </>
+    </div>
   );
 }

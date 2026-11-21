@@ -115,3 +115,25 @@ El prefijo visible actual es `/140210`; `/admin` es interno y su acceso directo 
 - Inventario: pruebas de guardado en bloque y conflictos de ADM-03.
 - Costos: contratos separados y pruebas de exclusión de respuestas operativas/públicas.
 - Imágenes: desvinculación y limpieza asíncrona conforme a ADM-04; su worker conserva la configuración existente.
+
+## Dashboard y componentes de interacción
+
+- El layout raíz conserva fuentes y estilos globales. `(store)` monta los proveedores de carrito/catálogo y la presentación comercial; `(admin)` monta únicamente el entorno administrativo. Las URLs públicas no cambian.
+- El layout protegido valida la sesión y entrega el rol a la navegación; `getAdminProfile` deduplica lecturas mediante React `cache` dentro del render, sin persistir permisos entre solicitudes. Las páginas y la API conservan sus verificaciones.
+- El inicio muestra accesos operativos sin consultar listados. Reposición tiene su propia ruta `/140210/restock`, exclusiva de ADMIN. Los enlaces del panel no precargan rutas automáticamente.
+- `AdminButton`, `AdminLink`, `AdminHeading` y `AdminLoading` comparten presentación e indicadores accesibles. Los formularios conservan sus contratos, validación y protección de borradores.
+- Catálogo y Finanzas cargan categorías por montaje, con reintento independiente. Las actualizaciones conservan contenido visible; Pedidos evita consultas de fondo simultáneas y agrupa eventos de foco/visibilidad próximos, manteniendo el intervalo de 30 segundos en pestañas visibles.
+- El foco global de campos se dibuja sobre su propio borde. Botones, enlaces, casillas y otros controles conservan un indicador de teclado visible. Las animaciones respetan movimiento reducido.
+- `tests/admin-dashboard.browser.spec.ts` comprueba escritorio/móvil, ausencia de consultas operativas en Inicio, carga y actualización de inventario, foco del campo y reintento de reposición. Las pruebas de navegación usan el prefijo público `/140210`; `/admin` sigue devolviendo 404.
+- No requiere migraciones, cambios de API ni nuevas variables de entorno. Se publica con el despliegue habitual de Next.js.
+
+### Editores en modal y pantallas de acceso
+
+- Login, recuperación y restablecimiento están agrupados en `(access)` y reutilizan `StoreShell`, con cabecera, navegación, pie y proveedores comerciales. El layout protegido sigue independiente; no cambian URLs ni reglas de acceso.
+- Nueva prenda y edición usan un modal con Datos esenciales, Fotografías, Detalles y medidas y Completa el look. El borrador se conserva entre pestañas; guardar mantiene el editor abierto y «Guardar y cerrar» vuelve al catálogo. La Server Action `saveProduct` devuelve el producto guardado en `data` para actualizar ID y versión sin duplicados.
+- El detalle se carga una vez por apertura; si falla, el guardado queda bloqueado hasta reintentar. Los complementos usan portada y nombre, límite de tres, búsqueda diferida y paginación. Los candidatos se consultan al abrir su pestaña, no al abrir el editor.
+- Variantes tiene su propio modal, con protección de cambios al cerrar o cambiar de variante. Después de una mutación se recarga el detalle; un fallo de esa lectura bloquea nuevas mutaciones hasta reintentar. El catálogo se refresca al cerrar únicamente si hubo guardados.
+- `AdminModal` usa un diálogo nativo con fondo inerte, scroll bloqueado, retorno de foco, Escape y confirmación de descarte dentro del mismo modal. La carga diferida tiene un fallback local para no suspender y recargar el catálogo completo.
+- Las subidas continúan al cambiar de pestaña. Guardar y cerrar están bloqueados durante subidas; los archivos con errores se pueden reintentar o quitar. Tras guardar, el editor multimedia se reinicia con las imágenes vinculadas para que una eliminación posterior no las trate como temporales.
+- Las pantallas y cargas iniciales conservan las estrellas de `Loader`; `Spinner` se comparte para botones y actualizaciones pequeñas. Ambos respetan movimiento reducido.
+- Regresión específica: `tests/admin-modals.browser.spec.ts`, `tests/media.browser.spec.ts`, `tests/inventory.browser.spec.ts` y `tests/loader.browser.spec.ts`. No requiere migraciones ni nuevas dependencias.
