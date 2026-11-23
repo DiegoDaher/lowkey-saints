@@ -34,7 +34,10 @@ import {
   archiveInput,
   money,
   id,
+  catalogQuery,
 } from "../_shared/contracts.ts";
+import { GetCatalogFilteredUseCase } from "../_shared/catalog/application/GetCatalogFilteredUseCase.ts";
+import { PrismaCatalogRepository } from "../_shared/catalog/infra/PrismaCatalogRepository.ts";
 import { Prisma } from "../_shared/generated/prisma/client.ts";
 import {
   readJsonBody,
@@ -67,6 +70,9 @@ export function createApiHandler(
   const db = database;
   const auth = authClient;
   const shop = new ShopService(db);
+  const catalog = new GetCatalogFilteredUseCase(
+    new PrismaCatalogRepository(db)
+  );
   const finances = new CalculateFinancialMarginsUseCase(shop);
   async function administrator(
     req: Request,
@@ -138,10 +144,20 @@ export function createApiHandler(
       }
       if (route === "/v1/categories" && method === "GET")
         return json(await db.category.findMany({ orderBy: { name: "asc" } }));
-      if (
-        (route === "/v1/products" || route === "/v1/admin/products") &&
-        method === "GET"
-      ) {
+      if (route === "/v1/products" && method === "GET") {
+        const filters = catalogQuery.parse({
+          page: url.searchParams.get("page") ?? undefined,
+          category: url.searchParams.get("category") ?? undefined,
+          q: url.searchParams.get("q") ?? undefined,
+          min: url.searchParams.get("min") ?? undefined,
+          max: url.searchParams.get("max") ?? undefined,
+          size: url.searchParams.getAll("size"),
+          color: url.searchParams.getAll("color"),
+          sort: url.searchParams.get("sort") ?? undefined,
+        });
+        return json(await catalog.execute(filters));
+      }
+      if (route === "/v1/admin/products" && method === "GET") {
         const page = z.coerce
           .number()
           .int()

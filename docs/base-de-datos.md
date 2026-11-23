@@ -31,27 +31,27 @@ Los endpoints de escritura aplican presupuestos persistentes por minuto (global 
 
 Base: /functions/v1/api/v1. Respuestas de error: {error, issues?}. Códigos: 400 validación, 401 sesión ausente/inválida, 403 permiso, 404 inexistente, 409 conflicto, 429 límite, 503 configuración pendiente.
 
-| Método y ruta               | Uso                                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------------------ |
-| GET /categories             | Categorías                                                                                       |
-| GET /products               | Catálogo; page, category, q, min, max, size, color, sort; 24 por página                          |
-| GET /products/:slug         | Ficha, medidas y complementos                                                                    |
-| POST /orders                | Nombre, teléfono, idempotencyKey e items {variantId,quantity}; devuelve recibo y enlace WhatsApp |
-| POST /restock               | email, variantId, reactivate opcional                                                            |
-| POST /unsubscribe           | token de baja                                                                                    |
-| GET /admin/me               | Perfil verificado                                                                                |
-| GET /admin/health           | Consulta dentro de transacción Prisma                                                            |
-| GET/POST /admin/products    | Listar/crear catálogo                                                                            |
-| GET/PUT /admin/products/:id | Consultar/editar; requiere version                                                               |
-| POST /admin/variants        | Crear SKU con stock inicial cero                                                                 |
-| PATCH /admin/variants/:id   | Archivar/reactivar con version                                                                   |
-| PATCH /admin/stock          | changes [{id,version,stock}], todas atómicas                                                     |
-| GET /admin/orders           | Pedidos paginados                                                                                |
-| PATCH /admin/orders/:id     | Cambio de estado                                                                                 |
-| GET /admin/restock          | Interesados y estado de notificaciones                                                           |
-| GET/PUT /admin/finances     | Costos y márgenes, solo ADMIN                                                                    |
-| GET/PUT /admin/roles        | Usuarios existentes en Auth, solo ADMIN                                                          |
-| POST /admin/images          | Binario JPEG/PNG/WebP, máximo 5 MB                                                               |
+| Método y ruta               | Uso                                                                                                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET /categories             | Categorías                                                                                                                                                                                                         |
+| GET /products               | Catálogo público (tarjetas, sin archivados); page, category, q (≤100), min, max (min≤max), size y color (≤10), sort = recientes\|precio-asc\|precio-desc (relevancia = recientes); 24 por página; payload reducido |
+| GET /products/:slug         | Ficha, medidas y complementos                                                                                                                                                                                      |
+| POST /orders                | Nombre, teléfono, idempotencyKey e items {variantId,quantity}; devuelve recibo y enlace WhatsApp                                                                                                                   |
+| POST /restock               | email, variantId, reactivate opcional                                                                                                                                                                              |
+| POST /unsubscribe           | token de baja                                                                                                                                                                                                      |
+| GET /admin/me               | Perfil verificado                                                                                                                                                                                                  |
+| GET /admin/health           | Consulta dentro de transacción Prisma                                                                                                                                                                              |
+| GET/POST /admin/products    | Listar/crear catálogo                                                                                                                                                                                              |
+| GET/PUT /admin/products/:id | Consultar/editar; requiere version                                                                                                                                                                                 |
+| POST /admin/variants        | Crear SKU con stock inicial cero                                                                                                                                                                                   |
+| PATCH /admin/variants/:id   | Archivar/reactivar con version                                                                                                                                                                                     |
+| PATCH /admin/stock          | changes [{id,version,stock}], todas atómicas                                                                                                                                                                       |
+| GET /admin/orders           | Pedidos paginados                                                                                                                                                                                                  |
+| PATCH /admin/orders/:id     | Cambio de estado                                                                                                                                                                                                   |
+| GET /admin/restock          | Interesados y estado de notificaciones                                                                                                                                                                             |
+| GET/PUT /admin/finances     | Costos y márgenes, solo ADMIN                                                                                                                                                                                      |
+| GET/PUT /admin/roles        | Usuarios existentes en Auth, solo ADMIN                                                                                                                                                                            |
+| POST /admin/images          | Binario JPEG/PNG/WebP, máximo 5 MB                                                                                                                                                                                 |
 
 Los contratos y validadores compartidos están en supabase/functions/_shared/contracts.ts. Los paneles están en /admin; el grupo (admin) heredado no representa una ruta URL.
 
@@ -126,3 +126,7 @@ La migración `202611180001_product_media` añade `ProductMediaAsset`, backfill 
 ## ADM-05: configuración financiera
 
 Se mantienen `Product.salePrice` y `ProductCost.costPrice` como Decimal(10,2). La migración `202611200001_financial_settings` añade `FinancialSettings`, singleton con id=1, umbral Decimal(5,2) entre 0 y 100 (inicial 30), versión no negativa y updatedAt. RLS habilitado y forzado; sin acceso para anon/authenticated. Guardar costos incrementa Product.version; el panel actualiza precio y costo en una única transacción. No hay backfill de costos. Ver [ADM-05](adm-05-finanzas.md).
+
+## Catálogo público (CAT-05)
+
+`GET /products` vive en `supabase/functions/_shared/catalog/`: `GetCatalogFilteredUseCase` combina filtros y `PrismaCatalogRepository` consulta con `select` proyectado (sin materiales, especificaciones, medidas, SKU ni versión; máximo dos imágenes). Los parámetros se validan con `catalogQuery` y devuelven 400 si son inválidos. El orden por precio usa el índice `Product(isArchived, salePrice, id)` (migración `202611220001_catalog_price_index`). El listado administrativo `/admin/products` conserva su payload completo.

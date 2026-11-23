@@ -17,4 +17,4 @@ Los tokens de la interfaz están definidos en `src/app/globals.css` con `@theme`
 
 CAT-02 consume `Product[]` desde `src/types/product.ts`. Por ahora `src/app/page.tsx` entrega `mockProducts`, definido en `src/data/mock-products.ts`, a `CatalogSection`. Para integrar CAT-03, conserva esos componentes y reemplaza únicamente la importación de `mockProducts` por la fuente real, mapeando sus resultados al tipo `Product` y manteniendo las rutas locales/optimizadas de imágenes.
 
-La barra de ordenar y el botón de filtros son solamente presentación: CAT-04 debe aportar su estado y lógica. La paginación y persistencia permanecen fuera de este módulo (CAT-03/CAT-05).
+La barra de ordenar y el botón de filtros son solamente presentación: CAT-04 debe aportar su estado y lógica. El filtrado, orden y paginación (24 por página) los resuelve la API (CAT-05, `supabase/functions/_shared/catalog/`); la sincronización con la URL corresponde a CAT-04.

@@ -65,6 +65,7 @@ model Product {
   updatedAt      DateTime            @updatedAt
 
   @@index([isArchived, createdAt, id])
+  @@index([isArchived, salePrice, id])
 }
 
 model ProductCost {

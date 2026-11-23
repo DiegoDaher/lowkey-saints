@@ -19,7 +19,7 @@ flowchart TD
 
 La API valida el token con Auth y consulta `AdminProfile.active` y `role`. ADMIN accede a finanzas y roles; OPERATOR consulta catálogo, modifica existencias y opera pedidos; solo ADMIN modifica catálogo e imágenes. El precio se calcula en servidor y las reservas se guardan en transacciones. RLS y permisos SQL aportan defensa adicional; Prisma no hereda automáticamente la identidad JWT del navegador.
 
-El esquema está en `prisma/schema.prisma` y las migraciones en `prisma/migrations`. Las funciones comparten contratos Zod, servicio de negocio, lector acotado y notificaciones. El lector acepta hasta 200 000 bytes JSON o 5 MiB de imágenes, cancela el flujo al excederlos y genera `AppError(413)`.
+El esquema está en `prisma/schema.prisma` y las migraciones en `prisma/migrations`. El catálogo público (CAT-05) vive en `_shared/catalog` (caso de uso y repositorio Prisma con `select` proyectado). Las funciones comparten contratos Zod, servicio de negocio, lector acotado y notificaciones. El lector acepta hasta 200 000 bytes JSON o 5 MiB de imágenes, cancela el flujo al excederlos y genera `AppError(413)`.
 
 `jobs` expira reservas y procesa la cola de reposición. El código integra Resend con reintentos e idempotencia; su existencia no demuestra entrega de correo. El enlace `wa.me` abre WhatsApp, sin enviar automáticamente un mensaje por Business API.
 
