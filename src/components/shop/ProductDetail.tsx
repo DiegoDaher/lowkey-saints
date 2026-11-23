@@ -3,6 +3,7 @@ import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import Link from "next/link";
 import ProductImage from "@/components/catalog/ProductImage";
+import ProductImageModal from "./ProductImageModal";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
@@ -15,6 +16,7 @@ export default function ProductDetail({
 }) {
   const [variantId, setVariant] = useState(p.variants[0]?.id || "");
   const [image, setImage] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const cart = useCart();
@@ -29,7 +31,11 @@ export default function ProductDetail({
       </Link>
       <div className="mt-8 grid gap-10 md:grid-cols-2">
         <div className="min-w-0">
-          <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="store-card-media relative aspect-[4/5] w-full cursor-zoom-in overflow-hidden transition-opacity hover:opacity-90"
+            aria-label="Ampliar imagen"
+          >
             <ProductImage
               unoptimized
               className="object-contain"
@@ -37,7 +43,7 @@ export default function ProductDetail({
               src={p.images[image]?.url || "/images/hero-editorial.svg"}
               alt={p.images[image]?.alt || p.name}
             />
-          </div>
+          </button>
           <div className="mt-3 flex gap-2 overflow-x-auto p-1">
             {p.images.map((im, i) => (
               <button
@@ -161,10 +167,18 @@ export default function ProductDetail({
           <p className="store-status" role="status">
             {message}
           </p>
-          <h2 className="text-xl">Materiales</h2>
-          <p>{p.materials}</p>
-          <h2 className="text-xl">Especificaciones</h2>
-          <p>{p.specifications}</p>
+          {p.materials && (
+            <div className="store-receipt border-gold border-l-2 pl-4">
+              <h2 className="mb-2 text-xl font-semibold">Materiales</h2>
+              <p className="text-sm leading-relaxed">{p.materials}</p>
+            </div>
+          )}
+          {p.specifications && (
+            <div className="store-receipt border-gold border-l-2 pl-4">
+              <h2 className="mb-2 text-xl font-semibold">Especificaciones</h2>
+              <p className="text-sm leading-relaxed">{p.specifications}</p>
+            </div>
+          )}
           <h2 className="text-xl">Guía de tallas · cm</h2>
           <table className="w-full text-left">
             <thead>
@@ -226,6 +240,13 @@ export default function ProductDetail({
           </div>
         </section>
       )}
+      <ProductImageModal
+        isOpen={isModalOpen}
+        images={p.images}
+        currentIndex={image}
+        onClose={() => setIsModalOpen(false)}
+        onImageChange={setImage}
+      />
     </main>
   );
 }
