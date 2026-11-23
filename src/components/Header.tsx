@@ -96,7 +96,7 @@ export default function Header() {
                       ? "true"
                       : undefined
                   }
-                  className="store-link store-nav-link font-display text-sm font-semibold tracking-[0.12em]"
+                  className="store-link store-nav-link font-display text-m font-semibold tracking-[0.12em]"
                   href={category.value === "Todas" ? "/#inicio" : "/#catalogo"}
                   onNavigate={() => selectCategory(category.value)}
                 >
