@@ -1,6 +1,6 @@
-import type { CatalogProduct } from "../../supabase/functions/_shared/contracts";
+import type { CatalogCardProduct } from "../../supabase/functions/_shared/contracts";
 import type { Product } from "@/types/product";
-export function catalogProduct(p: CatalogProduct): Product {
+export function catalogProduct(p: CatalogCardProduct): Product {
   return {
     id: p.id,
     name: p.name,

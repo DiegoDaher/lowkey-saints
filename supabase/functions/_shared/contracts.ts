@@ -4,6 +4,7 @@ import {
   type OrderStatus,
   type OrderAction,
 } from "./orders/domain/OrderStateValidator.ts";
+import type { CatalogFilters } from "./catalog/domain/CatalogFilters.ts";
 export type { OrderStatus, OrderAction };
 export const orderStatusInput = z.enum(orderStatuses);
 export const id = z.string().uuid();
@@ -11,6 +12,46 @@ export const money = z
   .string()
   .regex(/^\d{1,8}(\.\d{1,2})?$/, "Importe inválido");
 const text = z.string().trim().min(1).max(200);
+const filterText = z
+  .string()
+  .trim()
+  .max(100)
+  .optional()
+  .transform((value) => value || undefined);
+const filterMoney = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => value || undefined)
+  .pipe(money.optional());
+export const catalogQuery = z
+  .object({
+    page: z.coerce.number().int().min(1).max(10000).default(1),
+    category: filterText,
+    q: filterText,
+    min: filterMoney,
+    max: filterMoney,
+    size: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+    color: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+    // "relevancia" is the legacy UI default and maps to newest first.
+    sort: z
+      .enum(["relevancia", "recientes", "precio-asc", "precio-desc"])
+      .default("recientes"),
+  })
+  .refine((v) => !v.min || !v.max || Number(v.min) <= Number(v.max), {
+    message: "El precio mínimo no puede superar al máximo",
+    path: ["min"],
+  })
+  .transform((v): CatalogFilters => ({
+    page: v.page,
+    category: v.category,
+    q: v.q,
+    min: v.min,
+    max: v.max,
+    sizes: v.size,
+    colors: v.color,
+    sort: v.sort === "relevancia" ? "recientes" : v.sort,
+  }));
 export const orderInput = z
   .object({
     idempotencyKey: id,
@@ -162,6 +203,22 @@ export interface CatalogProduct {
   }[];
   complements?: { complementary: CatalogProduct }[];
 }
+export type CatalogCardProduct = Pick<
+  CatalogProduct,
+  | "id"
+  | "name"
+  | "slug"
+  | "description"
+  | "salePrice"
+  | "isArchived"
+  | "images"
+  | "categories"
+> & {
+  variants: Pick<
+    CatalogProduct["variants"][number],
+    "size" | "color" | "colorHex" | "stock"
+  >[];
+};
 export interface OrderReceipt {
   id: string;
   orderNumber: number;

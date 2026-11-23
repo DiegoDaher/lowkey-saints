@@ -47,6 +47,8 @@
 
 ---
 
+> **Nota CAT-05:** la implementación vive en `supabase/functions/_shared/catalog/{domain,application,infra}` (Edge Function `api`), no en `src/modules/catalog` ni en `src/app/api/v1`: la web no importa Prisma (ver `docs/Arquitectura.md`). El árbol siguiente es el diseño original.
+
 ## Estructura del Módulo
 
 ```text
@@ -78,4 +80,4 @@ src/modules/catalog/
 
 [ ] Los filtros actualizan la URL sin causar un refresh completo de la página.
 
-[ ] La consulta Prisma utiliza select proyectado y soporta paginación eficiente.
+[x] La consulta Prisma utiliza select proyectado y soporta paginación eficiente.

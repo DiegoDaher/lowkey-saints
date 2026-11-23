@@ -4,7 +4,7 @@ import Loader from "@/components/ui/Loader";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { catalogProduct } from "@/lib/catalog-product";
-import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
+import type { CatalogCardProduct } from "../../../supabase/functions/_shared/contracts";
 import type { Product } from "@/types/product";
 import CatalogFilterDialog from "@/components/catalog/CatalogFilterDialog";
 import {
@@ -47,7 +47,7 @@ export default function CatalogSection() {
         filters.sizes.forEach((v) => query.append("size", v));
         filters.colors.forEach((v) => query.append("color", v));
         const result = await api<{
-          items: CatalogProduct[];
+          items: CatalogCardProduct[];
           total: number;
           pages: number;
         }>("/products?" + query, { signal: controller.signal });
