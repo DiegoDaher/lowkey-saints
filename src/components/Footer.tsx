@@ -1,11 +1,13 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import InstagramIcon from "@/components/icons/InstagramIcon";
+import { INSTAGRAM } from "@/lib/store-contact";
 
 const helpLinks = [
-  { label: "Envíos y devoluciones", href: "#" },
-  { label: "Preguntas frecuentes", href: "#" },
-  { label: "Contacto", href: "#" },
+  { label: "Envíos y puntos de entrega", href: "/envios" },
+  { label: "Preguntas frecuentes", href: "/preguntas-frecuentes" },
+  { label: "Contacto", href: "/contacto" },
 ];
 
 export default function Footer() {
@@ -42,17 +44,15 @@ export default function Footer() {
             SÍGUENOS
           </h2>
           <a
-            aria-label="Lowkey Saints en Instagram"
+            aria-label={`Lowkey Saints en Instagram (${INSTAGRAM.handle})`}
             className="store-link inline-flex min-h-11 items-center gap-2 text-sm font-medium"
-            href="https://www.instagram.com/lowkey_saints/"
+            href={INSTAGRAM.url}
             rel="noreferrer"
             target="_blank"
           >
-            <span aria-hidden="true" className="font-display text-sm font-bold">
-              IG
-            </span>
+            <InstagramIcon size={18} />
+            {INSTAGRAM.handle}
             <ArrowUpRight aria-hidden="true" size={15} />
-            Instagram
           </a>
         </div>
       </div>
