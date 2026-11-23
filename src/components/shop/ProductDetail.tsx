@@ -9,18 +9,24 @@ import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
 import StoreAction from "@/components/ui/StoreAction";
+import VariantSelector from "@/modules/catalog/ui/components/VariantSelector";
+import StockAlertBadge from "@/modules/catalog/ui/components/StockAlertBadge";
+import { checkStock } from "@/modules/inventory/application/CheckStockUseCase";
 export default function ProductDetail({
   product: p,
 }: {
   product: CatalogProduct;
 }) {
-  const [variantId, setVariant] = useState(p.variants[0]?.id || "");
+  const variants = p.variants.filter((x) => !x.isArchived);
+  const [variantId, setVariant] = useState(variants[0]?.id || "");
   const [image, setImage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const cart = useCart();
-  const v = p.variants.find((v) => v.id === variantId);
+  const v = variants.find((v) => v.id === variantId);
+  const inCart = cart.items.find((i) => i.variantId === v?.id)?.quantity ?? 0;
+  const stock = checkStock(v, 1, inCart);
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
       <Link
@@ -69,29 +75,22 @@ export default function ProductDetail({
           <h1 className="font-display text-5xl uppercase">{p.name}</h1>
           <p className="text-xl">{formatPrice(Number(p.salePrice))}</p>
           <p>{p.description}</p>
-          <label className="block">
-            Talla y color
-            <select
-              className="store-field mt-2 block w-full border p-3"
-              value={variantId}
-              onChange={(e) => {
-                setVariant(e.target.value);
-                setMessage("");
-              }}
-            >
-              {p.variants.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.size} / {v.color} — {v.stock ? "Disponible" : "Agotado"}
-                </option>
-              ))}
-            </select>
-          </label>
-          {v && v.stock > 0 ? (
+          <VariantSelector
+            variants={variants}
+            selectedId={variantId}
+            onSelect={(id) => {
+              setVariant(id);
+              setMessage("");
+            }}
+          />
+          {v && <StockAlertBadge stock={stock} />}
+          {v && stock.reason !== "out_of_stock" ? (
             <>
-              <p>{v.stock <= 3 ? "Quedan pocas unidades" : "Disponible"}</p>
               <StoreAction
                 className="w-full sm:w-auto"
+                disabled={!stock.canPurchase}
                 onClick={() => {
+                  if (!checkStock(v, 1, inCart).canPurchase) return;
                   cart.add({
                     variantId: v.id,
                     name: p.name,
@@ -112,55 +111,64 @@ export default function ProductDetail({
               </Link>
             </>
           ) : v ? (
-            <form
-              className="space-y-3"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                setBusy(true);
-                try {
-                  await api("/restock", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      email: form.get("email"),
-                      variantId: v.id,
-                      reactivate: form.get("reactivate") === "on",
-                    }),
-                  });
-                  setMessage("Solicitud registrada");
-                } catch (e) {
-                  setMessage((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <label className="block">
-                Avísame cuando vuelva
-                <input
-                  className="store-field block w-full border p-3"
-                  name="email"
-                  type="email"
-                  placeholder="Tu correo"
-                  required
-                />
-              </label>
-              <label className="block text-sm">
-                <input name="reactivate" type="checkbox" /> Reactivar mis avisos
-                si antes me di de baja
-              </label>
-              <StoreAction type="submit" disabled={busy} aria-busy={busy}>
-                {busy ? (
-                  <Spinner
-                    announce={false}
-
-                    label="Registrando…"
-                  />
-                ) : (
-                  "Recibir aviso"
-                )}
+            <>
+              <StoreAction className="w-full sm:w-auto" disabled aria-disabled>
+                Agregar a la bolsa
               </StoreAction>
-            </form>
+              <form
+                className="space-y-3"
+                aria-label="Avisarme cuando haya stock"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = new FormData(e.currentTarget);
+                  setBusy(true);
+                  try {
+                    await api("/restock", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        email: form.get("email"),
+                        variantId: v.id,
+                        reactivate: form.get("reactivate") === "on",
+                      }),
+                    });
+                    setMessage("Solicitud registrada");
+                  } catch (e) {
+                    setMessage((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <label className="block">
+                  Avísame cuando vuelva
+                  <input
+                    className="store-field block w-full border p-3"
+                    name="email"
+                    type="email"
+                    placeholder="Tu correo"
+                    required
+                  />
+                </label>
+                <label className="block text-sm">
+                  <input name="reactivate" type="checkbox" /> Reactivar mis
+                  avisos si antes me di de baja
+                </label>
+                <StoreAction type="submit" disabled={busy} aria-busy={busy}>
+                  {busy ? (
+                    <Spinner
+                      announce={false}
+
+                      label="Registrando…"
+                    />
+                  ) : (
+                    "Recibir aviso"
+                  )}
+                </StoreAction>
+              </form>
+              <p className="text-muted text-sm">
+                Selecciona otra talla o color para ver su disponibilidad.
+              </p>
+            </>
           ) : (
             <p>No hay variantes disponibles.</p>
           )}

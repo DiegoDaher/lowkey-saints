@@ -31,6 +31,12 @@
   - Alerta visual condicional ("Últimas 2 piezas", "Agotado").
   - Deshabilitación reactiva del CTA "Agregar a la bolsa" cuando el stock de la variante seleccionada es 0.
   - Validación de stock contra `src/modules/inventory/application/CheckStockUseCase.ts`.
+- **Estado (implementado):**
+  - `src/modules/inventory/application/CheckStockUseCase.ts`: función pura `checkStock` (umbral "Últimas N piezas" = stock ≤ 2; "Agotado" con stock 0, variante archivada o cantidad > stock).
+  - `src/modules/catalog/ui/components/VariantSelector.tsx` y `StockAlertBadge.tsx`, integrados en `src/components/shop/ProductDetail.tsx` (ruta real: `src/app/(store)/productos/[slug]`).
+  - Sin stock, el CTA se muestra deshabilitado y se mantiene el formulario "Avísame cuando vuelva".
+  - Límite por bolsa: `checkStock(variant, qty, inCart)` deshabilita el CTA cuando la bolsa ya tiene todo el stock ("Ya tienes todas las piezas disponibles en tu bolsa").
+  - Selector con teclado (flechas/Home/End, tabindex itinerante), variantes archivadas ocultas y opciones agotadas marcadas con tachado/diagonal (no solo color).
 
 ### [PDP-04] Carrito Desplegable (Side-Cart) y Retención Temporal
 

@@ -26,3 +26,12 @@ La barra de ordenar y el botón de filtros son solamente presentación: CAT-04 d
 - `src/components/sections/InfoPage.tsx` da la estructura común de las páginas de ayuda.
 - Rutas: `/envios` (puntos de entrega: Punto Guadiana, Paseo Durango y Portal Durango), `/preguntas-frecuentes` (flujo del cliente: catálogo → bolsa → pedido → WhatsApp, pago, entrega y avisos de reposición) y `/contacto` (WhatsApp, correo e Instagram).
 - Para agregar o quitar un punto de entrega, edita `PICKUP_POINTS`; las páginas se actualizan solas.
+
+## PDP-03 — Variantes y disponibilidad
+
+- **Estado (implementado):**
+  - `src/modules/inventory/application/CheckStockUseCase.ts`: función pura `checkStock` (umbral "Últimas N piezas" = stock ≤ 2; "Agotado" con stock 0, variante archivada o cantidad > stock).
+  - `src/modules/catalog/ui/components/VariantSelector.tsx` y `StockAlertBadge.tsx`, integrados en `src/components/shop/ProductDetail.tsx` (ruta real: `src/app/(store)/productos/[slug]`).
+  - Sin stock, el CTA se muestra deshabilitado y se mantiene el formulario "Avísame cuando vuelva".
+  - Límite por bolsa: `checkStock(variant, qty, inCart)` deshabilita el CTA cuando la bolsa ya tiene todo el stock ("Ya tienes todas las piezas disponibles en tu bolsa").
+  - Selector con teclado (flechas/Home/End, tabindex itinerante), variantes archivadas ocultas y opciones agotadas marcadas con tachado/diagonal (no solo color).

@@ -565,3 +565,36 @@
     margin-top: 1rem;
   }
 }
+
+/* Out-of-stock variants: visible, still selectable, not color-only. */
+.store-choice--out,
+.store-swatch--out {
+  position: relative;
+  overflow: hidden;
+}
+.store-choice--out {
+  border-style: dashed;
+  color: var(--color-muted);
+}
+.store-choice--out::after,
+.store-swatch--out::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Ink edges + paper core stay visible on both dark and light swatches. */
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 1.5px),
+    var(--color-ink) calc(50% - 1.5px),
+    var(--color-ink) calc(50% - 0.5px),
+    var(--color-paper) calc(50% - 0.5px),
+    var(--color-paper) calc(50% + 0.5px),
+    var(--color-ink) calc(50% + 0.5px),
+    var(--color-ink) calc(50% + 1.5px),
+    transparent calc(50% + 1.5px)
+  );
+}
+.store-choice--out::after {
+  opacity: 0.35;
+}
