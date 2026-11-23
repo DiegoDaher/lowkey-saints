@@ -9,7 +9,7 @@ export default function Logo({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <Link
       aria-label="Lowkey Saints, inicio"
-      className="group inline-flex h-16 w-32 items-center justify-center overflow-hidden"
+      className="group inline-flex h-24 w-48 items-center justify-center overflow-hidden"
       href="/#inicio"
       onNavigate={() => {
         resetFilters();
@@ -18,10 +18,10 @@ export default function Logo({ onNavigate }: { onNavigate?: () => void }) {
     >
       <Image
         alt="Lowkey Saints"
-        className="h-full w-full object-contain mix-blend-multiply"
+        className="h-full w-full object-contain"
         height={1280}
         priority
-        src="/lowkey%20Saints%20Imagen.png"
+        src="/lowkey%20Saints%20sin%20fondo.png"
         width={1280}
       />
     </Link>
