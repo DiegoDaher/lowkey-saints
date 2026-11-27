@@ -47,12 +47,18 @@ Rutas adaptadas a la arquitectura real: `supabase/functions/_shared/orders/domai
   - Componente modal/input `src/modules/restock/ui/RestockForm.tsx` solicitando email al cliente.
   - Validación de email con `zod`.
 
+**Estado: implementado.** `src/modules/restock/ui/RestockForm.tsx` es un formulario en línea que aparece bajo el CTA deshabilitado cuando `checkStock(...).reason === "out_of_stock"`. Valida con `restockEmailSchema` (`subscriptionInput.pick({ email: true })` de `_shared/contracts.ts`), así cliente y API aplican la misma regla. Envía a `POST /v1/restock` y muestra el error junto al campo (`aria-invalid`), mensajes en español para 409/429/400 y una confirmación con el correo y la opción "Usar otro correo". Recuerda el último correo en `localStorage` (`restock-email`) y usa un honeypot (`website`) que nunca llega a la API. La lógica pura está en `src/modules/restock/domain/restock-form.ts`. No requiere migraciones ni cambios de backend.
+
+Verificación: `tests/restock-form.test.ts` (unitarias) y el grupo "restock form (LOG-04)" en `tests/pdp-variants.browser.spec.ts`.
+
 ### [LOG-05] Lógica y Persistencia de Solicitudes de Restock
 
 - **Objetivo:** Repositorio y modelo para las alertas de reposición.
 - **Entregables:**
   - Modelo `RestockAlert` en `prisma/schema.prisma` asociando `email`, `variantId` y flag `notified: Boolean`.
   - Endpoint en `src/app/api/v1/restock/route.ts` manejando suscripciones únicas para evitar spam.
+
+> Nota (LOG-04): este alcance ya existe en Supabase. `RestockSubscription` (`@@unique([email, variantId])`, estados ACTIVE/NOTIFIED/UNSUBSCRIBED) sustituye a `RestockAlert`, y `POST /v1/restock` en `supabase/functions/api/handler.ts` limita a 5 solicitudes por minuto por correo. El envío (LOG-06) lo cubren el outbox `Notification` y `deliverNotifications` en `_shared/notifications.ts`. Falta revisar lo pendiente de LOG-05 y LOG-06 contra esa implementación antes de crear archivos nuevos.
 
 ### [LOG-06] Servicio Asíncrono de Notificaciones con Resend
 

@@ -181,3 +181,105 @@ test("expired hold warns but keeps the items", async ({ page }) => {
   );
   await expect(drawer.getByText("Chamarra de variantes")).toBeVisible();
 });
+
+test.describe("restock form (LOG-04)", () => {
+  const RESTOCK = "**/functions/v1/api/v1/restock";
+  const CORS = { "Access-Control-Allow-Origin": "*" };
+
+  async function soldOut(page: import("@playwright/test").Page) {
+    await page.goto(URL);
+    await page.getByRole("button", { name: /^Talla L/ }).click();
+    await page.getByRole("button", { name: /^Color Negro/ }).click();
+    await expect(page.getByText("Agotado", { exact: true })).toBeVisible();
+  }
+
+  test("invalid email shows an inline error and sends nothing", async ({
+    page,
+  }) => {
+    let calls = 0;
+    await page.route(RESTOCK, (route) => {
+      calls++;
+      return route.fulfill({ headers: CORS, json: { ok: true } });
+    });
+    await soldOut(page);
+    const email = page.getByLabel("Avísame cuando vuelva");
+    await email.fill("no-es-correo");
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "correo válido" })
+    ).toBeVisible();
+    await expect(email).toHaveAttribute("aria-invalid", "true");
+    await expect(email).toBeFocused();
+    expect(calls).toBe(0);
+  });
+
+  test("valid email subscribes, confirms and is remembered", async ({
+    page,
+  }) => {
+    let body: Record<string, unknown> | undefined;
+    await page.route(RESTOCK, (route) => {
+      body = route.request().postDataJSON();
+      return route.fulfill({ headers: CORS, json: { ok: true } });
+    });
+    await soldOut(page);
+    await page.getByLabel("Avísame cuando vuelva").fill(" Ana@Correo.COM ");
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    const confirmation = page.getByRole("status").filter({
+      hasText: "Listo, te avisaremos.",
+    });
+    await expect(confirmation).toBeVisible();
+    await expect(confirmation).toContainText("ana@correo.com");
+    await expect(confirmation).toBeFocused();
+    expect(body).toMatchObject({
+      email: "ana@correo.com",
+      reactivate: false,
+    });
+    expect(typeof body?.variantId).toBe("string");
+
+    await page.getByRole("button", { name: "Usar otro correo" }).click();
+    await expect(page.getByLabel("Avísame cuando vuelva")).toHaveValue(
+      "ana@correo.com"
+    );
+    await page.reload();
+    await page.getByRole("button", { name: /^Talla L/ }).click();
+    await page.getByRole("button", { name: /^Color Negro/ }).click();
+    await expect(page.getByLabel("Avísame cuando vuelva")).toHaveValue(
+      "ana@correo.com"
+    );
+  });
+
+  test("rate limit shows a friendly message", async ({ page }) => {
+    await page.route(RESTOCK, (route) =>
+      route.fulfill({
+        status: 429,
+        headers: CORS,
+        json: { error: "Demasiadas solicitudes; intenta en un minuto" },
+      })
+    );
+    await soldOut(page);
+    await page.getByLabel("Avísame cuando vuelva").fill("ana@correo.com");
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Espera un minuto" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Recibir aviso" })
+    ).toBeEnabled();
+  });
+
+  test("filled honeypot never reaches the API", async ({ page }) => {
+    let calls = 0;
+    await page.route(RESTOCK, (route) => {
+      calls++;
+      return route.fulfill({ headers: CORS, json: { ok: true } });
+    });
+    await soldOut(page);
+    await page.getByLabel("Avísame cuando vuelva").fill("bot@spam.com");
+    await page
+      .locator('input[name="website"]')
+      .evaluate((el: HTMLInputElement) => (el.value = "https://spam.test"));
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    await expect(page.getByText("Listo, te avisaremos.")).toBeVisible();
+    expect(calls).toBe(0);
+  });
+});
