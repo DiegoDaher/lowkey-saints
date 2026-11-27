@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/shop/CartProvider";
 import { CatalogFilterProvider } from "@/components/catalog/CatalogFilterProvider";
+import SideCartDrawer from "@/shared/ui/SideCartDrawer";
 export default function StoreShell({
   children,
 }: {
@@ -15,6 +16,7 @@ export default function StoreShell({
         <Header />
         {children}
         <Footer />
+        <SideCartDrawer />
       </CatalogFilterProvider>
     </CartProvider>
   );

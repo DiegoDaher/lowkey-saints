@@ -99,8 +99,16 @@ for (const retry of [false, true]) {
     );
     // Start a new document after seeding the persisted cart, as a returning customer.
     await page.reload();
-    await page.getByRole("link", { name: "Bolsa", exact: true }).click();
+    // The legacy `lowkey-cart` seed is migrated to `cart-storage` on load.
+    await page.getByRole("button", { name: "Bolsa, 1 artículo" }).click();
+    const drawer = page.getByRole("dialog", { name: /Tu bolsa/ });
+    await expect(drawer.getByText("Camiseta de prueba")).toBeVisible();
+    await expect(drawer.getByTestId("side-cart-subtotal")).toHaveText(
+      /100\.25/
+    );
+    await drawer.getByRole("link", { name: "Finalizar pedido" }).click();
     await expect(page).toHaveURL(/\/bolsa$/);
+    await expect(drawer).toBeHidden();
     await expect(page.getByText("Camiseta de prueba")).toBeVisible();
     await page.reload();
     await expect(page.getByText("Camiseta de prueba")).toBeVisible();
@@ -114,8 +122,8 @@ for (const retry of [false, true]) {
         "Intenta de nuevo"
       );
       expect(
-        await page.evaluate(() =>
-          JSON.parse(localStorage.getItem("lowkey-cart") || "[]")
+        await page.evaluate(
+          () => JSON.parse(localStorage.getItem("cart-storage") || "{}").items
         )
       ).toHaveLength(1);
       expect(
@@ -136,8 +144,8 @@ for (const retry of [false, true]) {
       page.getByRole("link", { name: "Continuar en WhatsApp" })
     ).toHaveAttribute("href", "https://wa.me/525555555555?text=Pedido%2042");
     expect(
-      await page.evaluate(() =>
-        JSON.parse(localStorage.getItem("lowkey-cart") || "[]")
+      await page.evaluate(
+        () => JSON.parse(localStorage.getItem("cart-storage") || "{}").items
       )
     ).toEqual([]);
     expect(

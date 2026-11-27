@@ -28,6 +28,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Reserve the scrollbar so modal scroll locks never shift the layout. */
+  scrollbar-gutter: stable;
 }
 
 body {

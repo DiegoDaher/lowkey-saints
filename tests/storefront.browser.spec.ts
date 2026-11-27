@@ -117,7 +117,10 @@ for (const width of [375, 768, 1440]) {
       .poll(() => requests.at(-1)?.search)
       .toBe("?page=1&sort=relevancia");
     await selectNav("Tops");
-    await header.getByRole("link", { name: "Bolsa", exact: true }).click();
+    await header.getByRole("button", { name: "Bolsa", exact: true }).click();
+    await expect(page.getByText("Tu bolsa está vacía.")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.goto("/bolsa");
     await selectNav("Tops");
     await expect(page).toHaveURL(/\/#catalogo$/);
     await expect
@@ -130,6 +133,8 @@ for (const width of [375, 768, 1440]) {
       page.getByRole("heading", { name: "Hoodie de prueba" })
     ).toBeVisible();
     await page.getByRole("button", { name: "Agregar a la bolsa" }).click();
+    await expect(page.getByRole("dialog", { name: /Tu bolsa/ })).toBeVisible();
+    await page.keyboard.press("Escape");
     await selectNav("Inicio");
     await expect
       .poll(() => requests.at(-1)?.search)
@@ -137,11 +142,15 @@ for (const width of [375, 768, 1440]) {
     await expect
       .poll(() =>
         page.evaluate(
-          () => JSON.parse(localStorage.getItem("lowkey-cart") || "[]").length
+          () =>
+            JSON.parse(localStorage.getItem("cart-storage") || "{}").items
+              ?.length
         )
       )
       .toBe(1);
-    await header.getByRole("link", { name: "Bolsa", exact: true }).click();
+    await header.getByRole("button", { name: "Bolsa, 1 artículo" }).click();
+    await page.getByRole("link", { name: "Finalizar pedido" }).click();
+    await expect(page).toHaveURL(/\/bolsa$/);
     await logo.click();
     await expect(page).toHaveURL(/\/#inicio$/);
     await expect

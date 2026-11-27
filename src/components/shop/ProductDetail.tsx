@@ -7,7 +7,8 @@ import ProductImageModal from "./ProductImageModal";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
-import { formatPrice } from "@/lib/format-price";
+import { formatCents } from "@/lib/format-price";
+import { toCents } from "@/modules/orders/domain/cart";
 import StoreAction from "@/components/ui/StoreAction";
 import VariantSelector from "@/modules/catalog/ui/components/VariantSelector";
 import StockAlertBadge from "@/modules/catalog/ui/components/StockAlertBadge";
@@ -73,7 +74,7 @@ export default function ProductDetail({
         <section className="min-w-0 space-y-6">
           <p>{p.categories.map((c) => c.category.name).join(" / ")}</p>
           <h1 className="font-display text-5xl uppercase">{p.name}</h1>
-          <p className="text-xl">{formatPrice(Number(p.salePrice))}</p>
+          <p className="text-xl">{formatCents(toCents(p.salePrice))}</p>
           <p>{p.description}</p>
           <VariantSelector
             variants={variants}
@@ -93,22 +94,33 @@ export default function ProductDetail({
                   if (!checkStock(v, 1, inCart).canPurchase) return;
                   cart.add({
                     variantId: v.id,
+                    slug: p.slug,
                     name: p.name,
                     size: v.size,
                     color: v.color,
-                    price: p.salePrice,
+                    image: p.images[0]?.url,
+                    priceCents: toCents(p.salePrice),
+                    maxQuantity: stock.available,
                   });
                   setMessage("Agregado a tu bolsa");
                 }}
               >
                 Agregar a la bolsa
               </StoreAction>
-              <Link
+              <button
+                type="button"
+                aria-haspopup="dialog"
                 className="store-link mt-3 inline-flex min-h-11 items-center sm:mt-0 sm:ml-5"
-                href="/bolsa"
+                onClick={cart.openCart}
               >
                 Ver bolsa
-              </Link>
+              </button>
+              {inCart > 0 && (
+                <p className="text-muted text-sm">
+                  Ya tienes {inCart} {inCart === 1 ? "pieza" : "piezas"} de esta
+                  variante en tu bolsa.
+                </p>
+              )}
             </>
           ) : v ? (
             <>
@@ -192,14 +204,16 @@ export default function ProductDetail({
             <thead>
               <tr>
                 {["Talla", "Pecho", "Cintura", "Cadera"].map((x) => (
-                  <th key={x}>{x}</th>
+                  <th scope="col" key={x}>
+                    {x}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {p.measurements.map((m) => (
                 <tr key={m.size}>
-                  <td>{m.size}</td>
+                  <th scope="row">{m.size}</th>
                   <td>{m.chestCm || "—"}</td>
                   <td>{m.waistCm || "—"}</td>
                   <td>{m.hipCm || "—"}</td>
@@ -242,7 +256,7 @@ export default function ProductDetail({
                   )}
                 </div>
                 <p className="store-product-name store-link mt-3">{c.name}</p>
-                <p>{formatPrice(Number(c.salePrice))}</p>
+                <p>{formatCents(toCents(c.salePrice))}</p>
               </Link>
             ))}
           </div>

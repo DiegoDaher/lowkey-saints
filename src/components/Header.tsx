@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
+import { useCart } from "@/components/shop/CartProvider";
 import {
   useCatalogFilters,
   type ProductCategory,
@@ -21,6 +22,7 @@ const categories: { label: string; value: ProductCategory }[] = [
 export default function Header() {
   const pathname = usePathname();
   const { filters, setCategory } = useCatalogFilters();
+  const { count, openCart } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
@@ -115,14 +117,24 @@ export default function Header() {
           >
             <Search aria-hidden="true" size={20} strokeWidth={1.6} />
           </button>
-          <Link
-            href="/bolsa"
-            aria-label="Bolsa"
-            className="store-icon flex size-11 items-center justify-center"
+          <button
+            aria-haspopup="dialog"
+            aria-label={
+              count > 0
+                ? `Bolsa, ${count} ${count === 1 ? "artículo" : "artículos"}`
+                : "Bolsa"
+            }
+            className="store-icon relative flex size-11 items-center justify-center"
+            onClick={openCart}
             type="button"
           >
             <ShoppingBag aria-hidden="true" size={20} strokeWidth={1.6} />
-          </Link>
+            {count > 0 && (
+              <span aria-hidden="true" className="store-cart-badge">
+                {count > 99 ? "99+" : count}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 

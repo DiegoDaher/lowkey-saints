@@ -1,93 +1,115 @@
 "use client";
 import {
   createContext,
+  useCallback,
   useContext,
+  useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-export interface CartLine {
-  variantId: string;
-  name: string;
-  size: string;
-  color: string;
-  price: string;
-  quantity: number;
-}
-const empty: CartLine[] = [];
-let cached: CartLine[] = empty;
+import {
+  addLine,
+  emptyCart,
+  itemCount,
+  migrateLegacy,
+  parseCartState,
+  removeLine,
+  setQuantity as setLineQuantity,
+  subtotalCents,
+  type CartLine,
+  type CartState,
+} from "@/modules/orders/domain/cart";
+
+export type { CartLine };
+
+export const CART_KEY = "cart-storage";
+const LEGACY_KEY = "lowkey-cart";
+const EVENT = "cart-storage";
+
+let cached: CartState = emptyCart;
 let raw: string | null = null;
-function snapshot() {
-  const next = localStorage.getItem("lowkey-cart");
+
+function read(): string | null {
+  const current = localStorage.getItem(CART_KEY);
+  if (current !== null) return current;
+  const legacy = localStorage.getItem(LEGACY_KEY);
+  if (legacy === null) return null;
+  // One-time migration from the pre-PDP-04 storage format.
+  const migrated = JSON.stringify(migrateLegacy(legacy, Date.now()));
+  localStorage.setItem(CART_KEY, migrated);
+  localStorage.removeItem(LEGACY_KEY);
+  return migrated;
+}
+
+function snapshot(): CartState {
+  const next = read();
   if (next !== raw) {
     raw = next;
-    try {
-      const value = JSON.parse(next || "[]");
-      cached = Array.isArray(value)
-        ? value.filter(
-            (x) =>
-              typeof x.variantId === "string" &&
-              typeof x.name === "string" &&
-              typeof x.price === "string" &&
-              Number.isInteger(x.quantity) &&
-              x.quantity > 0 &&
-              x.quantity <= 20
-          )
-        : empty;
-    } catch {
-      cached = empty;
-    }
+    cached = parseCartState(next);
   }
   return cached;
 }
+
 function subscribe(notify: () => void) {
   window.addEventListener("storage", notify);
-  window.addEventListener("lowkey-cart", notify);
+  window.addEventListener(EVENT, notify);
   return () => {
     window.removeEventListener("storage", notify);
-    window.removeEventListener("lowkey-cart", notify);
+    window.removeEventListener(EVENT, notify);
   };
 }
-function update(fn: (items: CartLine[]) => CartLine[]) {
-  localStorage.setItem("lowkey-cart", JSON.stringify(fn(snapshot())));
-  window.dispatchEvent(new Event("lowkey-cart"));
+
+function update(fn: (state: CartState) => CartState) {
+  localStorage.setItem(CART_KEY, JSON.stringify(fn(snapshot())));
+  window.dispatchEvent(new Event(EVENT));
 }
-const Context = createContext<{
+
+interface CartContext {
   items: CartLine[];
-  add: (line: Omit<CartLine, "quantity">) => void;
-  quantity: (id: string, n: number) => void;
+  heldAt: number | null;
+  count: number;
+  subtotalCents: number;
+  add: (line: Omit<CartLine, "quantity">, options?: { open?: boolean }) => void;
+  setQuantity: (variantId: string, quantity: number) => void;
+  remove: (variantId: string) => void;
   clear: () => void;
-} | null>(null);
-export function CartProvider({ children }: { children: ReactNode }) {
-  const items = useSyncExternalStore(subscribe, snapshot, () => empty);
-  return (
-    <Context.Provider
-      value={{
-        items,
-        add: (line) =>
-          update((old) =>
-            old.some((i) => i.variantId === line.variantId)
-              ? old.map((i) =>
-                  i.variantId === line.variantId
-                    ? { ...i, quantity: Math.min(20, i.quantity + 1) }
-                    : i
-                )
-              : [...old, { ...line, quantity: 1 }]
-          ),
-        quantity: (id, n) =>
-          update((old) =>
-            old
-              .map((i) =>
-                i.variantId === id ? { ...i, quantity: Math.min(20, n) } : i
-              )
-              .filter((i) => i.quantity > 0)
-          ),
-        clear: () => update(() => []),
-      }}
-    >
-      {children}
-    </Context.Provider>
-  );
+  isOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
 }
+
+const Context = createContext<CartContext | null>(null);
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const state = useSyncExternalStore(subscribe, snapshot, () => emptyCart);
+  const [isOpen, setOpen] = useState(false);
+  const openCart = useCallback(() => setOpen(true), []);
+  const closeCart = useCallback(() => setOpen(false), []);
+
+  const value = useMemo<CartContext>(
+    () => ({
+      items: state.items,
+      heldAt: state.heldAt,
+      count: itemCount(state.items),
+      subtotalCents: subtotalCents(state.items),
+      add: (line, { open = true } = {}) => {
+        update((s) => addLine(s, line, Date.now()));
+        if (open) setOpen(true);
+      },
+      setQuantity: (id, n) => update((s) => setLineQuantity(s, id, n)),
+      remove: (id) => update((s) => removeLine(s, id)),
+      clear: () => update(() => emptyCart),
+      isOpen,
+      openCart,
+      closeCart,
+    }),
+    [state, isOpen, openCart, closeCart]
+  );
+
+  return <Context.Provider value={value}>{children}</Context.Provider>;
+}
+
 export function useCart() {
   const ctx = useContext(Context);
   if (!ctx) throw new Error("Missing cart provider");
