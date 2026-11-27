@@ -14,7 +14,7 @@
     "db:studio": "prisma studio",
     "prepare": "husky",
     "test": "npm run test:unit",
-    "test:unit": "tsx --test tests/order-state.test.ts tests/domain.test.ts tests/request-body.test.ts tests/postgres-tls.test.ts tests/admin-access.test.ts tests/admin-users.test.ts tests/inventory.test.ts tests/media.test.ts tests/finances.test.ts tests/catalog-filters.test.ts",
+    "test:unit": "tsx --test tests/order-state.test.ts tests/domain.test.ts tests/request-body.test.ts tests/postgres-tls.test.ts tests/admin-access.test.ts tests/admin-users.test.ts tests/inventory.test.ts tests/check-stock.test.ts tests/media.test.ts tests/finances.test.ts tests/catalog-filters.test.ts tests/cart.test.ts",
     "test:integration": "node scripts/test-integration.mjs",
     "test:browser": "playwright test --config tests/playwright.config.ts",
     "check:edge": "deno check --config supabase/functions/deno.json supabase/functions/api/index.ts supabase/functions/jobs/index.ts",

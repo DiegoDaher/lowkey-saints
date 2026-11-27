@@ -5,11 +5,14 @@ import { statusLabel } from "@/lib/status-label";
 import Link from "next/link";
 import { useCart } from "@/components/shop/CartProvider";
 import { api } from "@/lib/api";
-import { formatPrice } from "@/lib/format-price";
+import { formatCents, formatPrice } from "@/lib/format-price";
+import CartItemRow from "@/modules/orders/ui/components/CartItemRow";
+import HoldNotice from "@/modules/orders/ui/components/HoldNotice";
 import StoreAction from "@/components/ui/StoreAction";
 import type { OrderReceipt } from "../../../../supabase/functions/_shared/contracts";
 export default function Bag() {
-  const { items, quantity, clear } = useCart();
+  const { items, heldAt, subtotalCents, setQuantity, remove, clear } =
+    useCart();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
@@ -36,33 +39,20 @@ export default function Bag() {
       ) : (
         <>
           {items.length ? (
-            items.map((i) => (
-              <div
-                className="border-line flex flex-wrap items-center justify-between gap-3 border-b py-4"
-                key={i.variantId}
-              >
-                <div>
-                  {i.name}
-                  <p className="text-sm">
-                    {i.size} / {i.color} · {formatPrice(Number(i.price))}
-                  </p>
-                </div>
-                <label>
-                  Cantidad
-                  <input
-                    className="store-field ml-3 w-16 border p-2"
-                    type="number"
-                    min="0"
-                    max="20"
-                    value={i.quantity}
+            <>
+              <HoldNotice heldAt={heldAt} />
+              <ul aria-label="Artículos en tu bolsa">
+                {items.map((i) => (
+                  <CartItemRow
+                    key={i.variantId}
+                    line={i}
                     disabled={busy}
-                    onChange={(e) =>
-                      quantity(i.variantId, Number(e.target.value))
-                    }
+                    onQuantity={(n) => setQuantity(i.variantId, n)}
+                    onRemove={() => remove(i.variantId)}
                   />
-                </label>
-              </div>
-            ))
+                ))}
+              </ul>
+            </>
           ) : (
             <p>Tu bolsa está vacía.</p>
           )}
@@ -114,10 +104,7 @@ export default function Bag() {
               }}
             >
               <p>
-                Subtotal estimado:{" "}
-                {formatPrice(
-                  items.reduce((s, i) => s + Number(i.price) * i.quantity, 0)
-                )}
+                Subtotal estimado: <strong>{formatCents(subtotalCents)}</strong>
                 . La disponibilidad y el precio se confirman al crear tu pedido.
               </p>
               <label className="block">

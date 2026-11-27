@@ -34,3 +34,7 @@ El adaptador Storage vive en `supabase/functions/_shared/storage/` y lo comparte
 ## Finanzas ADM-05
 
 La ruta visible `/140210/finanzas` usa el rewrite administrativo vigente; `/admin` directo devuelve 404. El dashboard y sus Server Actions requieren ADMIN. `CalculateFinancialMarginsUseCase` en las Edge Functions concentra lectura consistente, cálculos Decimal y guardado atómico de precio/costo con versión optimista. `FinancialSettings` conserva el umbral global protegido por RLS. Ver [contratos y operación](adm-05-finanzas.md).
+
+## Bolsa y side-cart PDP-04
+
+La bolsa vive solo en el navegador. `src/modules/orders/domain/cart.ts` concentra las reglas puras (centavos enteros, límites por línea y retención informativa de 60 minutos); `CartProvider` la persiste en `localStorage` (`cart-storage`) mediante `useSyncExternalStore`. Los componentes compartidos de la tienda que no pertenecen a un módulo viven en `src/shared/ui` (`SideCartDrawer`). La disponibilidad y el precio definitivos los decide la API al crear el pedido. Ver [PDP-04](../src/modules/catalog/pdp.md).

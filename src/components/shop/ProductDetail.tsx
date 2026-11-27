@@ -3,22 +3,31 @@ import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import Link from "next/link";
 import ProductImage from "@/components/catalog/ProductImage";
+import ProductImageModal from "./ProductImageModal";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { useCart } from "./CartProvider";
 import { api } from "@/lib/api";
-import { formatPrice } from "@/lib/format-price";
+import { formatCents } from "@/lib/format-price";
+import { toCents } from "@/modules/orders/domain/cart";
 import StoreAction from "@/components/ui/StoreAction";
+import VariantSelector from "@/modules/catalog/ui/components/VariantSelector";
+import StockAlertBadge from "@/modules/catalog/ui/components/StockAlertBadge";
+import { checkStock } from "@/modules/inventory/application/CheckStockUseCase";
 export default function ProductDetail({
   product: p,
 }: {
   product: CatalogProduct;
 }) {
-  const [variantId, setVariant] = useState(p.variants[0]?.id || "");
+  const variants = p.variants.filter((x) => !x.isArchived);
+  const [variantId, setVariant] = useState(variants[0]?.id || "");
   const [image, setImage] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const cart = useCart();
-  const v = p.variants.find((v) => v.id === variantId);
+  const v = variants.find((v) => v.id === variantId);
+  const inCart = cart.items.find((i) => i.variantId === v?.id)?.quantity ?? 0;
+  const stock = checkStock(v, 1, inCart);
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-12">
       <Link
@@ -29,7 +38,11 @@ export default function ProductDetail({
       </Link>
       <div className="mt-8 grid gap-10 md:grid-cols-2">
         <div className="min-w-0">
-          <div className="store-card-media relative aspect-[4/5] overflow-hidden">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="store-card-media relative aspect-[4/5] w-full cursor-zoom-in overflow-hidden transition-opacity hover:opacity-90"
+            aria-label="Ampliar imagen"
+          >
             <ProductImage
               unoptimized
               className="object-contain"
@@ -37,7 +50,7 @@ export default function ProductDetail({
               src={p.images[image]?.url || "/images/hero-editorial.svg"}
               alt={p.images[image]?.alt || p.name}
             />
-          </div>
+          </button>
           <div className="mt-3 flex gap-2 overflow-x-auto p-1">
             {p.images.map((im, i) => (
               <button
@@ -61,123 +74,146 @@ export default function ProductDetail({
         <section className="min-w-0 space-y-6">
           <p>{p.categories.map((c) => c.category.name).join(" / ")}</p>
           <h1 className="font-display text-5xl uppercase">{p.name}</h1>
-          <p className="text-xl">{formatPrice(Number(p.salePrice))}</p>
+          <p className="text-xl">{formatCents(toCents(p.salePrice))}</p>
           <p>{p.description}</p>
-          <label className="block">
-            Talla y color
-            <select
-              className="store-field mt-2 block w-full border p-3"
-              value={variantId}
-              onChange={(e) => {
-                setVariant(e.target.value);
-                setMessage("");
-              }}
-            >
-              {p.variants.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.size} / {v.color} — {v.stock ? "Disponible" : "Agotado"}
-                </option>
-              ))}
-            </select>
-          </label>
-          {v && v.stock > 0 ? (
+          <VariantSelector
+            variants={variants}
+            selectedId={variantId}
+            onSelect={(id) => {
+              setVariant(id);
+              setMessage("");
+            }}
+          />
+          {v && <StockAlertBadge stock={stock} />}
+          {v && stock.reason !== "out_of_stock" ? (
             <>
-              <p>{v.stock <= 3 ? "Quedan pocas unidades" : "Disponible"}</p>
               <StoreAction
                 className="w-full sm:w-auto"
+                disabled={!stock.canPurchase}
                 onClick={() => {
+                  if (!checkStock(v, 1, inCart).canPurchase) return;
                   cart.add({
                     variantId: v.id,
+                    slug: p.slug,
                     name: p.name,
                     size: v.size,
                     color: v.color,
-                    price: p.salePrice,
+                    image: p.images[0]?.url,
+                    priceCents: toCents(p.salePrice),
+                    maxQuantity: stock.available,
                   });
                   setMessage("Agregado a tu bolsa");
                 }}
               >
                 Agregar a la bolsa
               </StoreAction>
-              <Link
+              <button
+                type="button"
+                aria-haspopup="dialog"
                 className="store-link mt-3 inline-flex min-h-11 items-center sm:mt-0 sm:ml-5"
-                href="/bolsa"
+                onClick={cart.openCart}
               >
                 Ver bolsa
-              </Link>
+              </button>
+              {inCart > 0 && (
+                <p className="text-muted text-sm">
+                  Ya tienes {inCart} {inCart === 1 ? "pieza" : "piezas"} de esta
+                  variante en tu bolsa.
+                </p>
+              )}
             </>
           ) : v ? (
-            <form
-              className="space-y-3"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget);
-                setBusy(true);
-                try {
-                  await api("/restock", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      email: form.get("email"),
-                      variantId: v.id,
-                      reactivate: form.get("reactivate") === "on",
-                    }),
-                  });
-                  setMessage("Solicitud registrada");
-                } catch (e) {
-                  setMessage((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <label className="block">
-                Avísame cuando vuelva
-                <input
-                  className="store-field block w-full border p-3"
-                  name="email"
-                  type="email"
-                  placeholder="Tu correo"
-                  required
-                />
-              </label>
-              <label className="block text-sm">
-                <input name="reactivate" type="checkbox" /> Reactivar mis avisos
-                si antes me di de baja
-              </label>
-              <StoreAction type="submit" disabled={busy} aria-busy={busy}>
-                {busy ? (
-                  <Spinner
-                    announce={false}
-
-                    label="Registrando…"
-                  />
-                ) : (
-                  "Recibir aviso"
-                )}
+            <>
+              <StoreAction className="w-full sm:w-auto" disabled aria-disabled>
+                Agregar a la bolsa
               </StoreAction>
-            </form>
+              <form
+                className="space-y-3"
+                aria-label="Avisarme cuando haya stock"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = new FormData(e.currentTarget);
+                  setBusy(true);
+                  try {
+                    await api("/restock", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        email: form.get("email"),
+                        variantId: v.id,
+                        reactivate: form.get("reactivate") === "on",
+                      }),
+                    });
+                    setMessage("Solicitud registrada");
+                  } catch (e) {
+                    setMessage((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <label className="block">
+                  Avísame cuando vuelva
+                  <input
+                    className="store-field block w-full border p-3"
+                    name="email"
+                    type="email"
+                    placeholder="Tu correo"
+                    required
+                  />
+                </label>
+                <label className="block text-sm">
+                  <input name="reactivate" type="checkbox" /> Reactivar mis
+                  avisos si antes me di de baja
+                </label>
+                <StoreAction type="submit" disabled={busy} aria-busy={busy}>
+                  {busy ? (
+                    <Spinner
+                      announce={false}
+
+                      label="Registrando…"
+                    />
+                  ) : (
+                    "Recibir aviso"
+                  )}
+                </StoreAction>
+              </form>
+              <p className="text-muted text-sm">
+                Selecciona otra talla o color para ver su disponibilidad.
+              </p>
+            </>
           ) : (
             <p>No hay variantes disponibles.</p>
           )}
           <p className="store-status" role="status">
             {message}
           </p>
-          <h2 className="text-xl">Materiales</h2>
-          <p>{p.materials}</p>
-          <h2 className="text-xl">Especificaciones</h2>
-          <p>{p.specifications}</p>
+          {p.materials && (
+            <div className="store-receipt border-gold border-l-2 pl-4">
+              <h2 className="mb-2 text-xl font-semibold">Materiales</h2>
+              <p className="text-sm leading-relaxed">{p.materials}</p>
+            </div>
+          )}
+          {p.specifications && (
+            <div className="store-receipt border-gold border-l-2 pl-4">
+              <h2 className="mb-2 text-xl font-semibold">Especificaciones</h2>
+              <p className="text-sm leading-relaxed">{p.specifications}</p>
+            </div>
+          )}
           <h2 className="text-xl">Guía de tallas · cm</h2>
           <table className="w-full text-left">
             <thead>
               <tr>
                 {["Talla", "Pecho", "Cintura", "Cadera"].map((x) => (
-                  <th key={x}>{x}</th>
+                  <th scope="col" key={x}>
+                    {x}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {p.measurements.map((m) => (
                 <tr key={m.size}>
-                  <td>{m.size}</td>
+                  <th scope="row">{m.size}</th>
                   <td>{m.chestCm || "—"}</td>
                   <td>{m.waistCm || "—"}</td>
                   <td>{m.hipCm || "—"}</td>
@@ -220,12 +256,19 @@ export default function ProductDetail({
                   )}
                 </div>
                 <p className="store-product-name store-link mt-3">{c.name}</p>
-                <p>{formatPrice(Number(c.salePrice))}</p>
+                <p>{formatCents(toCents(c.salePrice))}</p>
               </Link>
             ))}
           </div>
         </section>
       )}
+      <ProductImageModal
+        isOpen={isModalOpen}
+        images={p.images}
+        currentIndex={image}
+        onClose={() => setIsModalOpen(false)}
+        onImageChange={setImage}
+      />
     </main>
   );
 }

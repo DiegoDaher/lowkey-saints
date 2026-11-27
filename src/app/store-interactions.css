@@ -565,3 +565,103 @@
     margin-top: 1rem;
   }
 }
+
+/* Out-of-stock variants: visible, still selectable, not color-only. */
+.store-choice--out,
+.store-swatch--out {
+  position: relative;
+  overflow: hidden;
+}
+.store-choice--out {
+  border-style: dashed;
+  color: var(--color-muted);
+}
+.store-choice--out::after,
+.store-swatch--out::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Ink edges + paper core stay visible on both dark and light swatches. */
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 1.5px),
+    var(--color-ink) calc(50% - 1.5px),
+    var(--color-ink) calc(50% - 0.5px),
+    var(--color-paper) calc(50% - 0.5px),
+    var(--color-paper) calc(50% + 0.5px),
+    var(--color-ink) calc(50% + 0.5px),
+    var(--color-ink) calc(50% + 1.5px),
+    transparent calc(50% + 1.5px)
+  );
+}
+.store-choice--out::after {
+  opacity: 0.35;
+}
+
+/* PDP-04 side-cart: right drawer, slides in without blocking scroll abruptly. */
+.side-cart {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(100vw, 26rem);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  border-left: 1px solid var(--color-line);
+  box-shadow: -12px 0 40px #2c1f1018;
+}
+.side-cart::backdrop {
+  background-color: color-mix(in srgb, var(--color-ink) 40%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .side-cart[open] {
+    transition: transform 280ms var(--store-ease);
+    transform: translateX(0);
+  }
+  .side-cart[open]::backdrop {
+    transition: opacity 280ms var(--store-ease);
+    opacity: 1;
+  }
+  @starting-style {
+    .side-cart[open] {
+      transform: translateX(100%);
+    }
+    .side-cart[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}
+.store-cart-badge {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.1rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+}
+.store-hold {
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.9rem;
+  background: var(--color-gold-soft);
+  color: var(--color-gold-dark);
+}
+.store-hold--expired {
+  background: var(--color-bone);
+  color: var(--color-ink);
+  border: 1px dashed var(--color-muted);
+}
+.store-stepper {
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+}
+.store-stepper .store-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

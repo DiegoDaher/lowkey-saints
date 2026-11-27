@@ -479,6 +479,64 @@ createServer(async (req, res) => {
         ],
       })
     );
+  } else if (req.url === "/functions/v1/api/v1/products/variantes-prueba") {
+    res.end(
+      JSON.stringify({
+        id: "variantes",
+        name: "Chamarra de variantes",
+        slug: "variantes-prueba",
+        description: "Prenda de prueba",
+        salePrice: "999",
+        images: [],
+        categories: [{ category: { name: "Tops" } }],
+        measurements: [],
+        variants: [
+          {
+            id: "v-m-negro",
+            size: "M",
+            color: "Negro",
+            colorHex: "#111111",
+            stock: 5,
+          },
+          {
+            id: "v-m-blanco",
+            size: "M",
+            color: "Blanco",
+            colorHex: "#f5f5f5",
+            stock: 2,
+          },
+          {
+            id: "v-l-negro",
+            size: "L",
+            color: "Negro",
+            colorHex: "#111111",
+            stock: 0,
+          },
+          {
+            id: "v-l-blanco",
+            size: "L",
+            color: "Blanco",
+            colorHex: "#f5f5f5",
+            stock: 1,
+          },
+          {
+            id: "v-xl-blanco",
+            size: "XL",
+            color: "Blanco",
+            colorHex: "#f5f5f5",
+            stock: 4,
+          },
+          {
+            id: "v-s-negro",
+            size: "S",
+            color: "Negro",
+            colorHex: "#111111",
+            stock: 9,
+            isArchived: true,
+          },
+        ],
+      })
+    );
   } else if (req.url.startsWith("/storage/v1/object/public/product-images/")) {
     const object = media.get(req.url.split("/").at(-1));
     if (!object) res.writeHead(404).end();

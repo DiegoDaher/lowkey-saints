@@ -31,6 +31,12 @@
   - Alerta visual condicional ("Últimas 2 piezas", "Agotado").
   - Deshabilitación reactiva del CTA "Agregar a la bolsa" cuando el stock de la variante seleccionada es 0.
   - Validación de stock contra `src/modules/inventory/application/CheckStockUseCase.ts`.
+- **Estado (implementado):**
+  - `src/modules/inventory/application/CheckStockUseCase.ts`: función pura `checkStock` (umbral "Últimas N piezas" = stock ≤ 2; "Agotado" con stock 0, variante archivada o cantidad > stock).
+  - `src/modules/catalog/ui/components/VariantSelector.tsx` y `StockAlertBadge.tsx`, integrados en `src/components/shop/ProductDetail.tsx` (ruta real: `src/app/(store)/productos/[slug]`).
+  - Sin stock, el CTA se muestra deshabilitado y se mantiene el formulario "Avísame cuando vuelva".
+  - Límite por bolsa: `checkStock(variant, qty, inCart)` deshabilita el CTA cuando la bolsa ya tiene todo el stock ("Ya tienes todas las piezas disponibles en tu bolsa").
+  - Selector con teclado (flechas/Home/End, tabindex itinerante), variantes archivadas ocultas y opciones agotadas marcadas con tachado/diagonal (no solo color).
 
 ### [PDP-04] Carrito Desplegable (Side-Cart) y Retención Temporal
 
@@ -40,6 +46,13 @@
   - Store en cliente con Zustand persistido en `localStorage` (`cart-storage`).
   - Capacidad para agregar, eliminar y mutar cantidades con cálculo en vivo de subtotales.
   - Timestamp de retención temporal en cliente para avisar al usuario cuánto tiempo se reservará su selección tentativa.
+- **Estado (implementado):**
+  - `src/shared/ui/SideCartDrawer.tsx`: `<dialog>` lateral montado una vez en `src/components/StoreShell.tsx` (layout de la tienda). Se abre al agregar desde la ficha y desde el ícono de bolsa del header (con contador). Escape, clic en el fondo y "Seguir comprando" lo cierran y devuelven el foco al disparador. `scrollbar-gutter: stable` evita el salto de layout al bloquear el scroll; la animación respeta `prefers-reduced-motion`.
+  - Store: **sin Zustand por decisión del equipo**. `src/components/shop/CartProvider.tsx` conserva `useSyncExternalStore` (sin dependencias) y persiste `{ items, heldAt }` en `localStorage` con la clave `cart-storage`. El contenido antiguo de `lowkey-cart` se migra una vez y se elimina.
+  - Dominio puro en `src/modules/orders/domain/cart.ts`: precios en centavos enteros (`toCents` parsea la cadena decimal sin aritmética flotante), subtotales, límite por línea `min(stock al agregar, 20)` y retención.
+  - `src/modules/orders/ui/components/CartItemRow.tsx` (miniatura, stepper −/+, quitar, total de línea) y `HoldNotice.tsx` se reutilizan en el drawer y en `/bolsa`.
+  - Retención: 60 minutos informativos que se reinician al agregar. Al vencer se avisa "Tu selección ya no está apartada" sin vaciar la bolsa. La reserva real (24 h) sigue ocurriendo en servidor al crear el pedido; el contrato `POST /orders` no cambia.
+  - Pruebas: `tests/cart.test.ts` (unitarias) y casos de drawer/persistencia/retención en `tests/pdp-variants.browser.spec.ts`.
 
 ---
 
@@ -64,10 +77,10 @@ src/
 
 ## Checklist de Verificación
 
-[ ] Cambiar de variante actualiza instantáneamente el stock visible y el estado del botón de compra.
+[x] Cambiar de variante actualiza instantáneamente el stock visible y el estado del botón de compra.
 
-[ ] El carrito lateral abre automáticamente al añadir un producto sin bloquear el scroll del fondo de forma abrupta.
+[x] El carrito lateral abre automáticamente al añadir un producto sin bloquear el scroll del fondo de forma abrupta.
 
-[ ] Los items en el carrito persisten si se refresca la pestaña del navegador.
+[x] Los items en el carrito persisten si se refresca la pestaña del navegador.
 
-[ ] Los cálculos monetarios se manejan en enteros (centavos) para evitar errores de punto flotante en JS.
+[x] Los cálculos monetarios se manejan en enteros (centavos) para evitar errores de punto flotante en JS.
