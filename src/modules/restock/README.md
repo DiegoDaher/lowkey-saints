@@ -1,15 +1,21 @@
 # Módulo Restock
 
-Formulario "Avísame cuando vuelva" de la ficha de producto (LOG-04) y reglas de suscripción (LOG-05). La persistencia, el límite de solicitudes y el envío de correos viven en Supabase (`POST /v1/restock`, `RestockSubscription`, `_shared/notifications.ts`). Ver [orders/README.md](../orders/README.md) para el contrato completo.
+Formulario "Avísame cuando vuelva" de la ficha de producto (LOG-04), reglas de suscripción (LOG-05) y servicio asíncrono de avisos con Resend (LOG-06). La persistencia, el límite de solicitudes y el envío de correos viven en Supabase (`POST /v1/restock`, `RestockSubscription`, `Notification`, función `jobs`). Ver [orders/README.md](../orders/README.md) para el contrato completo.
 
 ```text
 src/modules/restock/
 ├── domain/restock-form.ts   # validación zod compartida con la API, mensajes, resultado de la API, recordar correo
+├── domain/restock-admin.ts  # filtros, etiquetas y textos del Backoffice de reposición (LOG-06)
 └── ui/RestockForm.tsx       # formulario en línea (cliente), se monta con key={variantId}
 
 supabase/functions/_shared/restock/
 ├── domain/RestockSubscriptionPolicy.ts       # una suscripción por correo y variante
+├── domain/NotificationDeliveryPolicy.ts      # intentos, backoff, ventana de idempotencia, reintentos
 ├── application/SubscribeToRestockUseCase.ts  # transacción, 404/409, carrera P2002
+├── application/NotifyBackInStockUseCase.ts   # encolar al reabastecer o desarchivar
+├── application/DeliverRestockNotificationsUseCase.ts # worker de la cola (jobs)
+├── application/RetryRestockNotificationUseCase.ts    # reintentos del Backoffice
+├── infra/ResendMailer.ts                     # adaptador fetch de Resend
 └── infra/RestockEmail.ts                     # correo HTML + texto
 ```
 

@@ -64,7 +64,8 @@ export function adminPermission(
     return "orders";
   if (
     (route === "/v1/admin/restock" && method === "GET") ||
-    (route === "/v1/admin/restock/retry" && method === "POST")
+    (route === "/v1/admin/restock/retry" && method === "POST") ||
+    (route === "/v1/admin/restock/retry-failed" && method === "POST")
   )
     return "restock";
   if (

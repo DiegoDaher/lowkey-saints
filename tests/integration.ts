@@ -2,7 +2,11 @@ import { mediaIntegration } from "./media-integration.ts";
 import { PrismaClient } from "../supabase/functions/_shared/generated/prisma/client.ts";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ShopService } from "../supabase/functions/_shared/service.ts";
-import { deliverNotifications } from "../supabase/functions/_shared/notifications.ts";
+import {
+  DeliverRestockNotificationsUseCase,
+  type DeliveryConfig,
+} from "../supabase/functions/_shared/restock/application/DeliverRestockNotificationsUseCase.ts";
+import { createResendMailer } from "../supabase/functions/_shared/restock/infra/ResendMailer.ts";
 import { AppError } from "../supabase/functions/_shared/domain.ts";
 const url = Deno.env.get("TEST_DATABASE_URL");
 if (
@@ -35,6 +39,18 @@ async function variant(stock = 1) {
     },
   });
 }
+const mail: DeliveryConfig = {
+  siteUrl: "https://example.com",
+  apiUrl: "https://api.example.com/functions/v1/api",
+};
+function deliverNotifications(send: typeof fetch, config = mail) {
+  return new DeliverRestockNotificationsUseCase(
+    db,
+    createResendMailer({ apiKey: "test", from: "test@example.com" }, send),
+    config
+  ).execute();
+}
+const okSend = (async () => Response.json({ id: "test" })) as typeof fetch;
 function order(variantId: string, quantity = 1) {
   return {
     idempotencyKey: crypto.randomUUID(),
@@ -456,14 +472,7 @@ Deno.test({
         rejected = true;
       }
       assert(rejected, "stale inventory rejected");
-      const mail = {
-        apiKey: "test",
-        from: "test@example.com",
-        siteUrl: "https://example.com",
-      };
       await deliverNotifications(
-        db,
-        mail,
         (async () => new Response("", { status: 503 })) as typeof fetch
       );
       const notification = await db.notification.findFirstOrThrow();
@@ -481,15 +490,12 @@ Deno.test({
         text?: string;
         headers?: Record<string, string>;
       } = {};
-      await deliverNotifications(db, mail, (async (
-        _url: string,
-        init?: RequestInit
-      ) => {
+      await deliverNotifications((async (_url: string, init?: RequestInit) => {
         calls++;
         sentPayload = JSON.parse(String(init?.body));
         return Response.json({ id: "test" });
       }) as typeof fetch);
-      await deliverNotifications(db, mail, (async () => {
+      await deliverNotifications((async () => {
         calls++;
         return Response.json({ id: "test" });
       }) as typeof fetch);
@@ -502,10 +508,14 @@ Deno.test({
         !!sentPayload.html?.includes("Ver producto") &&
           !!sentPayload.text?.includes("/baja?token=") &&
           sentPayload.headers?.["List-Unsubscribe"] ===
-            "<https://example.com/baja?token=" +
+            "<https://api.example.com/functions/v1/api/v1/unsubscribe/one-click?token=" +
               notified.unsubscribeToken +
-              ">",
-        "email has HTML, text and List-Unsubscribe"
+              ">, <https://example.com/baja?token=" +
+              notified.unsubscribeToken +
+              ">" &&
+          sentPayload.headers?.["List-Unsubscribe-Post"] ===
+            "List-Unsubscribe=One-Click",
+        "email has HTML, text and one-click List-Unsubscribe"
       );
       await db.productVariant.update({
         where: { id: empty.id },
@@ -551,6 +561,209 @@ Deno.test({
         (await shop.subscribe("test@example.com", empty.id, true)) ===
           "reactivated",
         "explicit consent reactivates"
+      );
+      // LOG-06: waiting for stock never spends attempts nor ends as a false FAILED.
+      const waiting = await variant(0);
+      await shop.subscribe("wait@example.com", waiting.id, false);
+      await shop.updateStock([{ id: waiting.id, version: 0, stock: 1 }]);
+      await db.productVariant.update({
+        where: { id: waiting.id },
+        data: { stock: 0 },
+      });
+      const noticeOf = (variantId: string) =>
+        db.notification.findFirstOrThrow({
+          where: { subscription: { variantId } },
+        });
+      for (let i = 0; i < 6; i++) {
+        await db.notification.update({
+          where: { id: (await noticeOf(waiting.id)).id },
+          data: { availableAt: new Date(0) },
+        });
+        await deliverNotifications(okSend);
+      }
+      let waited = await noticeOf(waiting.id);
+      assert(
+        waited.status === "PENDING" &&
+          waited.attempts === 0 &&
+          waited.firstAttemptAt === null &&
+          waited.availableAt > new Date(),
+        "stock waits do not count as attempts"
+      );
+      await db.notification.update({
+        where: { id: waited.id },
+        data: {
+          availableAt: new Date(0),
+          createdAt: new Date(Date.now() - 48 * 3600000),
+        },
+      });
+      await db.productVariant.update({
+        where: { id: waiting.id },
+        data: { stock: 1 },
+      });
+      await deliverNotifications(okSend);
+      waited = await noticeOf(waiting.id);
+      assert(
+        waited.status === "SENT" &&
+          waited.attempts === 1 &&
+          waited.firstAttemptAt !== null,
+        "a long wait is delivered instead of failing"
+      );
+      // A permanent provider rejection fails at once; transient ones back off.
+      const rejectedMail = await variant(0);
+      await shop.subscribe("bad@example.com", rejectedMail.id, false);
+      await shop.updateStock([{ id: rejectedMail.id, version: 0, stock: 1 }]);
+      await deliverNotifications(
+        (async () => new Response("", { status: 422 })) as typeof fetch
+      );
+      const bad = await noticeOf(rejectedMail.id);
+      assert(
+        bad.status === "FAILED" &&
+          bad.attempts === 1 &&
+          bad.firstAttemptAt !== null &&
+          !!bad.lastError?.includes("422"),
+        "permanent provider error fails immediately"
+      );
+      // Retries: safe inside the dedup window, explicit confirmation outside it.
+      const retries = shop.restockRetries();
+      await retries.retryOne(bad.id, false);
+      let retried = await noticeOf(rejectedMail.id);
+      assert(
+        retried.status === "PENDING" &&
+          retried.attempts === 0 &&
+          retried.lastError === null,
+        "retry inside the window requeues"
+      );
+      const uncertainAt = new Date(Date.now() - 30 * 3600000);
+      await db.notification.update({
+        where: { id: bad.id },
+        data: {
+          attempts: 1,
+          firstAttemptAt: uncertainAt,
+          availableAt: new Date(0),
+        },
+      });
+      let uncertainCalls = 0;
+      await deliverNotifications((async () => {
+        uncertainCalls++;
+        return Response.json({ id: "test" });
+      }) as typeof fetch);
+      retried = await noticeOf(rejectedMail.id);
+      assert(
+        retried.status === "FAILED" &&
+          uncertainCalls === 0 &&
+          !!retried.lastError?.startsWith("Entrega incierta"),
+        "uncertain delivery is not resent automatically"
+      );
+      let needsConfirmation = 0;
+      try {
+        await retries.retryOne(bad.id, false);
+      } catch (error) {
+        needsConfirmation = error instanceof AppError ? error.status : -1;
+      }
+      assert(needsConfirmation === 409, "uncertain retry needs confirmation");
+      assert(
+        (await retries.retryAllReady()).count === 0,
+        "bulk retry skips uncertain notices"
+      );
+      await retries.retryOne(bad.id, true);
+      retried = await noticeOf(rejectedMail.id);
+      assert(
+        retried.status === "PENDING" && retried.firstAttemptAt === null,
+        "forced retry opens a new dedup window"
+      );
+      await db.notification.update({
+        where: { id: bad.id },
+        data: {
+          status: "FAILED",
+          attempts: 1,
+          firstAttemptAt: new Date(),
+          lastError: "Resend rechazó el correo (HTTP 422)",
+        },
+      });
+      assert(
+        (await retries.retryAllReady()).count === 1,
+        "bulk retry requeues safe notices"
+      );
+      await db.notification.update({
+        where: { id: bad.id },
+        data: {
+          status: "FAILED",
+          attempts: 1,
+          firstAttemptAt: new Date(),
+          lastError: "Resend rechazó el correo (HTTP 422)",
+        },
+      });
+      // Unarchiving re-enqueues and revives notices cancelled by the archive.
+      const archived = await variant(0);
+      await shop.subscribe("arch@example.com", archived.id, false);
+      await shop.updateStock([{ id: archived.id, version: 0, stock: 2 }]);
+      const versionOf = async (variantId: string) =>
+        (
+          await db.productVariant.findUniqueOrThrow({
+            where: { id: variantId },
+          })
+        ).version;
+      const productVersion = async () =>
+        (
+          await db.product.findUniqueOrThrow({
+            where: { id: archived.productId },
+          })
+        ).version;
+      await shop.updateVariant(archived.id, await versionOf(archived.id), {
+        isArchived: true,
+      });
+      await deliverNotifications(okSend);
+      assert(
+        (await noticeOf(archived.id)).status === "CANCELLED",
+        "archived variant cancels its notice"
+      );
+      await shop.updateVariant(archived.id, await versionOf(archived.id), {
+        isArchived: false,
+      });
+      assert(
+        (await noticeOf(archived.id)).status === "PENDING",
+        "unarchiving a variant with stock revives its notice"
+      );
+      await shop.setProductArchived(
+        archived.productId,
+        await productVersion(),
+        true
+      );
+      await deliverNotifications(okSend);
+      assert(
+        (await noticeOf(archived.id)).status === "CANCELLED",
+        "archived product cancels its notice"
+      );
+      await shop.setProductArchived(
+        archived.productId,
+        await productVersion(),
+        false
+      );
+      assert(
+        (await noticeOf(archived.id)).status === "PENDING",
+        "unarchiving a product revives its notices"
+      );
+      await shop.setProductArchived(
+        archived.productId,
+        await productVersion(),
+        true
+      );
+      await deliverNotifications(okSend);
+      await shop.unsubscribe(
+        (
+          await db.restockSubscription.findFirstOrThrow({
+            where: { variantId: archived.id },
+          })
+        ).unsubscribeToken
+      );
+      await shop.setProductArchived(
+        archived.productId,
+        await productVersion(),
+        false
+      );
+      assert(
+        (await noticeOf(archived.id)).status === "CANCELLED",
+        "unsubscribed notices are never revived"
       );
       const security = await db.$queryRaw<
         {
@@ -838,6 +1051,7 @@ Deno.test({
         ["/variants/" + v.id, "PATCH"],
         ["/restock", "GET"],
         ["/restock/retry", "POST"],
+        ["/restock/retry-failed", "POST"],
         ["/finances", "GET"],
         ["/finances/dashboard", "GET"],
         ["/finances/settings", "GET"],
@@ -1081,6 +1295,105 @@ Deno.test({
       assert(
         (await restockRequest((await variant(3)).id)).status === 409,
         "restock HTTP in-stock 409"
+      );
+      // LOG-06: backoffice list with filters, totals, counts and retries.
+      const restockList = await adminRequest(
+        "/restock?delivery=FAILED&q=BAD@EXAMPLE",
+        "GET",
+        "ADMIN"
+      );
+      const restockBody = await restockList.json();
+      const failedNotice = restockBody.items?.[0]?.notifications?.[0];
+      assert(
+        restockList.status === 200 &&
+          restockBody.total === 1 &&
+          restockBody.pages === 1 &&
+          restockBody.items[0].email === "bad@example.com" &&
+          !("unsubscribeToken" in restockBody.items[0]) &&
+          typeof restockBody.items[0].variant.stock === "number" &&
+          failedNotice?.id === bad.id &&
+          failedNotice.retry === "ready" &&
+          restockBody.counts.FAILED >= 1,
+        "restock list filters by delivery and email with totals"
+      );
+      assert(
+        (await adminRequest("/restock?status=NOPE", "GET", "ADMIN")).status ===
+          400,
+        "restock list rejects unknown filters"
+      );
+      assert(
+        (
+          await adminRequest("/restock/retry", "POST", "ADMIN", {
+            notificationId: bad.id,
+          })
+        ).status === 200,
+        "restock HTTP retry requeues"
+      );
+      assert(
+        (
+          await adminRequest("/restock/retry", "POST", "ADMIN", {
+            notificationId: bad.id,
+          })
+        ).status === 409,
+        "restock HTTP retry rejects non-failed notices"
+      );
+      const bulkRetry = await adminRequest(
+        "/restock/retry-failed",
+        "POST",
+        "ADMIN"
+      );
+      assert(
+        bulkRetry.status === 200 &&
+          typeof (await bulkRetry.json()).count === "number",
+        "restock HTTP bulk retry"
+      );
+      // RFC 8058 one-click unsubscribe straight from the mail client.
+      const oneClickVariant = await variant(0);
+      await shop.subscribe("oneclick@example.com", oneClickVariant.id, false);
+      const oneClickSub = await db.restockSubscription.findFirstOrThrow({
+        where: { variantId: oneClickVariant.id },
+      });
+      const oneClick = (method: string, token: string) =>
+        handler(
+          new Request(
+            "http://localhost/functions/v1/api/v1/unsubscribe/one-click?token=" +
+              token,
+            method === "POST"
+              ? {
+                  method,
+                  headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                  },
+                  body: "List-Unsubscribe=One-Click",
+                }
+              : { method }
+          )
+        );
+      const oneClickGet = await oneClick("GET", oneClickSub.unsubscribeToken);
+      assert(
+        oneClickGet.status === 303 &&
+          !!oneClickGet.headers
+            .get("Location")
+            ?.endsWith("/baja?token=" + oneClickSub.unsubscribeToken) &&
+          (
+            await db.restockSubscription.findUniqueOrThrow({
+              where: { id: oneClickSub.id },
+            })
+          ).status === "ACTIVE",
+        "one-click GET only redirects to the confirmation page"
+      );
+      assert(
+        (await oneClick("POST", oneClickSub.unsubscribeToken)).status === 200 &&
+          (
+            await db.restockSubscription.findUniqueOrThrow({
+              where: { id: oneClickSub.id },
+            })
+          ).status === "UNSUBSCRIBED",
+        "one-click POST unsubscribes"
+      );
+      assert(
+        (await oneClick("POST", "not-a-token")).status === 400,
+        "one-click rejects malformed tokens"
       );
       const historical = await shop.createOrder(order(inventory.id));
       const originalSku = inventory.sku;

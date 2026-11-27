@@ -88,6 +88,34 @@ export const restockResults = [
   "unsubscribed",
 ] as const;
 export type RestockResult = (typeof restockResults)[number];
+/** Backoffice restock list and retries (LOG-06). */
+export const subscriptionStatuses = [
+  "ACTIVE",
+  "NOTIFIED",
+  "UNSUBSCRIBED",
+] as const;
+export const notificationStatuses = [
+  "PENDING",
+  "PROCESSING",
+  "SENT",
+  "FAILED",
+  "CANCELLED",
+] as const;
+export type NotificationStatus = (typeof notificationStatuses)[number];
+export const restockAdminQuery = z.object({
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+  status: z.enum(subscriptionStatuses).optional(),
+  delivery: z.enum(notificationStatuses).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => v || undefined),
+});
+export const retryInput = z
+  .object({ notificationId: id, force: z.boolean().default(false) })
+  .strict();
 export const stockInput = z
   .object({
     changes: z

@@ -1,6 +1,8 @@
 import { attachMedia, detachMedia } from "./storage/media.ts";
 import { CreateOrderUseCase } from "./orders/application/CreateOrderUseCase.ts";
 import { SubscribeToRestockUseCase } from "./restock/application/SubscribeToRestockUseCase.ts";
+import { NotifyBackInStockUseCase } from "./restock/application/NotifyBackInStockUseCase.ts";
+import { RetryRestockNotificationUseCase } from "./restock/application/RetryRestockNotificationUseCase.ts";
 import { Prisma, PrismaClient } from "./generated/prisma/client.ts";
 import { AppError, requireTransition } from "./domain.ts";
 import type { CreateOrderInput, ProductInput } from "./contracts.ts";
@@ -37,18 +39,65 @@ export class ShopService {
     );
   }
   async enqueue(tx: Tx, variantId: string) {
-    const subscriptions = await tx.restockSubscription.findMany({
-      where: { variantId, status: "ACTIVE" },
-      select: { id: true, generation: true },
+    await new NotifyBackInStockUseCase().execute(tx, [variantId]);
+  }
+  /** Variants of a product that are sellable again after unarchiving. */
+  private async enqueueAvailable(
+    tx: Tx,
+    where: Prisma.ProductVariantWhereInput
+  ) {
+    const variants = await tx.productVariant.findMany({
+      where: {
+        ...where,
+        isArchived: false,
+        stock: { gt: 0 },
+        product: { isArchived: false },
+      },
+      select: { id: true },
     });
-    if (subscriptions.length)
-      await tx.notification.createMany({
-        data: subscriptions.map((s) => ({
-          subscriptionId: s.id,
-          generation: s.generation,
-        })),
-        skipDuplicates: true,
+    await new NotifyBackInStockUseCase().execute(
+      tx,
+      variants.map((v) => v.id)
+    );
+  }
+  async setProductArchived(id: string, version: number, isArchived: boolean) {
+    return this.atomic(async (tx) => {
+      const before = await tx.product.findUnique({
+        where: { id },
+        select: { isArchived: true },
       });
+      const result = await tx.product.updateMany({
+        where: { id, version },
+        data: { isArchived, version: { increment: 1 } },
+      });
+      if (!before || !result.count)
+        throw new AppError(409, "El producto cambió; recarga la vista");
+      if (before.isArchived && !isArchived)
+        await this.enqueueAvailable(tx, { productId: id });
+    });
+  }
+  async updateVariant(
+    id: string,
+    version: number,
+    fields: Prisma.ProductVariantUpdateManyMutationInput
+  ) {
+    return this.atomic(async (tx) => {
+      const before = await tx.productVariant.findUnique({
+        where: { id },
+        select: { isArchived: true },
+      });
+      const result = await tx.productVariant.updateMany({
+        where: { id, version },
+        data: { ...fields, version: { increment: 1 } },
+      });
+      if (!before || !result.count)
+        throw new AppError(409, "La variante cambió");
+      if (before.isArchived && fields.isArchived === false)
+        await this.enqueueAvailable(tx, { id });
+    });
+  }
+  restockRetries() {
+    return new RetryRestockNotificationUseCase(this.db);
   }
   async transition(
     orderId: string,
@@ -199,7 +248,13 @@ export class ShopService {
           fields.modelHeightCm === null ? null : fields.modelHeightCm,
       };
       let id = productId;
+      let unarchived = false;
       if (id) {
+        const prior = await tx.product.findUnique({
+          where: { id },
+          select: { isArchived: true },
+        });
+        unarchived = !!prior?.isArchived && !data.isArchived;
         const r = await tx.product.updateMany({
           where: { id, version: version ?? -1 },
           data: { ...data, version: { increment: 1 } },
@@ -248,6 +303,7 @@ export class ShopService {
             position,
           })),
         });
+      if (unarchived) await this.enqueueAvailable(tx, { productId: id });
       return tx.product.findUniqueOrThrow({
         where: { id },
         include: productInclude,

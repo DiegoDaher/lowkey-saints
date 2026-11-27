@@ -251,6 +251,8 @@ model Notification {
   availableAt    DateTime            @default(now())
   lockedAt       DateTime?
   lastError      String?
+  /// First real POST to the provider; starts Resend's 24 h idempotency window.
+  firstAttemptAt DateTime?
   sentAt         DateTime?
   createdAt      DateTime            @default(now())
 
