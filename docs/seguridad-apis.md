@@ -81,7 +81,7 @@ La consulta directa sin Origin no demuestra acceso desde Vercel. El archivo publ
 
 ## Otras integraciones
 
-El código de reposición llama POST https://api.resend.com/emails con una clave privada, datos del correo y una clave de idempotencia. Está implementado en código, pero no se enviaron correos durante esta práctica. WhatsApp usa un enlace wa.me con un mensaje codificado; requiere la acción del usuario.
+El código de reposición llama POST https://api.resend.com/emails con una clave privada, datos del correo y una clave de idempotencia. Está implementado en código, pero no se enviaron correos durante esta práctica. La baja en un clic (`POST /v1/unsubscribe/one-click?token=…`) es pública y no usa CORS: los proveedores de correo la llaman desde IP compartidas, así que solo aplica el límite global de escrituras; el token es un UUID no adivinable y un token desconocido responde igual que uno válido. WhatsApp usa un enlace wa.me con un mensaje codificado; requiere la acción del usuario.
 
 <!-- page -->
 

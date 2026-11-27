@@ -35,7 +35,11 @@ import {
   money,
   id,
   catalogQuery,
+  notificationStatuses,
+  restockAdminQuery,
+  retryInput,
 } from "../_shared/contracts.ts";
+import { retryEligibility } from "../_shared/restock/domain/NotificationDeliveryPolicy.ts";
 import { GetCatalogFilteredUseCase } from "../_shared/catalog/application/GetCatalogFilteredUseCase.ts";
 import { PrismaCatalogRepository } from "../_shared/catalog/infra/PrismaCatalogRepository.ts";
 import { Prisma } from "../_shared/generated/prisma/client.ts";
@@ -128,6 +132,26 @@ export function createApiHandler(
       const profile = adminRoute
         ? await administrator(req, adminPermission(route, method))
         : null;
+      // RFC 8058 one-click unsubscribe: mail providers POST from shared IPs, so
+      // only the global budget applies. The token is an unguessable UUID.
+      const oneClick = route === "/v1/unsubscribe/one-click";
+      if (oneClick && (method === "GET" || method === "HEAD")) {
+        const token = url.searchParams.get("token") ?? "";
+        const site = (Deno.env.get("SITE_URL") || origins[0]).replace(
+          /\/$/,
+          ""
+        );
+        return new Response(null, {
+          status: 303,
+          headers: {
+            ...headers,
+            Location:
+              site +
+              "/baja" +
+              (token ? "?token=" + encodeURIComponent(token) : ""),
+          },
+        });
+      }
       if (method !== "GET") {
         const ip =
           req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -137,10 +161,11 @@ export function createApiHandler(
           throw new AppError(503, "Servicio pendiente de configuración");
         // Global budget also bounds requests with spoofed proxy headers.
         await shop.rateLimit("global-write", 1000);
-        await shop.rateLimit(
-          await hash(secret + ":" + (profile?.id || ip)),
-          profile ? 120 : 20
-        );
+        if (!oneClick)
+          await shop.rateLimit(
+            await hash(secret + ":" + (profile?.id || ip)),
+            profile ? 120 : 20
+          );
       }
       if (route === "/v1/categories" && method === "GET")
         return json(await db.category.findMany({ orderBy: { name: "asc" } }));
@@ -282,7 +307,15 @@ export function createApiHandler(
       if (route === "/v1/restock" && method === "POST") {
         const v = subscriptionInput.parse(await body(req));
         await shop.rateLimit("email:" + (await hash(v.email)), 5);
-        await shop.subscribe(v.email, v.variantId, v.reactivate);
+        const result = await shop.subscribe(v.email, v.variantId, v.reactivate);
+        return json({ result }, result === "created" ? 201 : 200);
+      }
+      if (oneClick && method === "POST") {
+        // Body is "List-Unsubscribe=One-Click" (form encoded); the token is in the URL.
+        await req.body?.cancel().catch(() => {});
+        const token = id.safeParse(url.searchParams.get("token"));
+        if (!token.success) throw new AppError(400, "Enlace no válido");
+        await shop.unsubscribe(token.data);
         return json({ ok: true });
       }
       if (route === "/v1/unsubscribe" && method === "POST") {
@@ -347,12 +380,11 @@ export function createApiHandler(
         );
       if (productMatch && method === "PATCH") {
         const { version, isArchived } = archiveInput.parse(await body(req));
-        const result = await db.product.updateMany({
-          where: { id: id.parse(productMatch[1]), version },
-          data: { isArchived, version: { increment: 1 } },
-        });
-        if (!result.count)
-          throw new AppError(409, "El producto cambió; recarga la vista");
+        await shop.setProductArchived(
+          id.parse(productMatch[1]),
+          version,
+          isArchived
+        );
         return json({ ok: true });
       }
       if (route === "/v1/admin/variants" && method === "POST")
@@ -367,11 +399,7 @@ export function createApiHandler(
         const { version, ...fields } = variantUpdateInput.parse(
           await body(req)
         );
-        const r = await db.productVariant.updateMany({
-          where: { id: id.parse(variantMatch[1]), version },
-          data: { ...fields, version: { increment: 1 } },
-        });
-        if (!r.count) throw new AppError(409, "La variante cambió");
+        await shop.updateVariant(id.parse(variantMatch[1]), version, fields);
         return json({ ok: true });
       }
       if (route === "/v1/admin/stock" && method === "PATCH") {
@@ -451,44 +479,100 @@ export function createApiHandler(
         });
       }
       if (route === "/v1/admin/restock" && method === "GET") {
-        const page = z.coerce
-          .number()
-          .int()
-          .min(1)
-          .parse(url.searchParams.get("page") || 1);
-        return json(
-          await db.restockSubscription.findMany({
-            include: {
-              variant: { include: { product: { select: { name: true } } } },
+        const f = restockAdminQuery.parse({
+          page: url.searchParams.get("page") || undefined,
+          status: url.searchParams.get("status") || undefined,
+          delivery: url.searchParams.get("delivery") || undefined,
+          q: url.searchParams.get("q") || undefined,
+        });
+        const take = 50;
+        // Counts ignore the delivery filter so the chips stay comparable.
+        const base: Prisma.RestockSubscriptionWhereInput = {
+          ...(f.status ? { status: f.status } : {}),
+          ...(f.q
+            ? {
+                OR: [
+                  { email: { contains: f.q, mode: "insensitive" } },
+                  {
+                    variant: {
+                      product: { name: { contains: f.q, mode: "insensitive" } },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        };
+        const where: Prisma.RestockSubscriptionWhereInput = f.delivery
+          ? { ...base, notifications: { some: { status: f.delivery } } }
+          : base;
+        const [items, total, ...counts] = await db.$transaction([
+          db.restockSubscription.findMany({
+            where,
+            select: {
+              id: true,
+              email: true,
+              status: true,
+              generation: true,
+              createdAt: true,
+              variant: {
+                select: {
+                  size: true,
+                  color: true,
+                  stock: true,
+                  product: { select: { name: true } },
+                },
+              },
               notifications: {
-                select: { status: true, attempts: true, lastError: true },
+                orderBy: { generation: "desc" },
+                select: {
+                  id: true,
+                  generation: true,
+                  status: true,
+                  attempts: true,
+                  lastError: true,
+                  availableAt: true,
+                  sentAt: true,
+                  firstAttemptAt: true,
+                  createdAt: true,
+                },
               },
             },
-            orderBy: { createdAt: "desc" },
-            take: 50,
-            skip: (page - 1) * 50,
-          })
-        );
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take,
+            skip: (f.page - 1) * take,
+          }),
+          db.restockSubscription.count({ where }),
+          ...notificationStatuses.map((status) =>
+            db.restockSubscription.count({
+              where: { ...base, notifications: { some: { status } } },
+            })
+          ),
+        ]);
+        const now = new Date();
+        return json({
+          items: items.map((s) => ({
+            ...s,
+            notifications: s.notifications.map((n) => ({
+              ...n,
+              retry: retryEligibility(n, s.status, now),
+            })),
+          })),
+          total,
+          page: f.page,
+          pages: Math.ceil(total / take),
+          counts: Object.fromEntries(
+            notificationStatuses.map((status, i) => [status, counts[i]])
+          ),
+        });
       }
       if (route === "/v1/admin/restock/retry" && method === "POST") {
-        const { notificationId } = z
-          .object({ notificationId: id })
-          .parse(await body(req));
-        const retry = await db.notification.updateMany({
-          where: {
-            id: notificationId,
-            status: "FAILED",
-            createdAt: { gt: new Date(Date.now() - 23 * 3600000) },
-            subscription: { status: "ACTIVE" },
-          },
-          data: { status: "PENDING", availableAt: new Date() },
-        });
-        if (!retry.count)
-          throw new AppError(
-            409,
-            "La notificación requiere revisión de entrega o ya no admite reintentos"
-          );
-        return json({ ok: true });
+        const { notificationId, force } = retryInput.parse(await body(req));
+        return json(
+          await shop.restockRetries().retryOne(notificationId, force)
+        );
+      }
+      if (route === "/v1/admin/restock/retry-failed" && method === "POST") {
+        return json(await shop.restockRetries().retryAllReady());
       }
       if (route === "/v1/admin/finances/dashboard" && method === "GET")
         return json(

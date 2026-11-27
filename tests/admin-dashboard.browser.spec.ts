@@ -145,3 +145,108 @@ test("restock supports failure, retry and an empty result", async ({
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Siguiente" })).toBeDisabled();
 });
+test("restock filters, counts and retries failed notices (LOG-06)", async ({
+  page,
+}, info) => {
+  const failedNotice = {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    generation: 0,
+    status: "FAILED",
+    attempts: 5,
+    lastError: "Proveedor respondió HTTP 503",
+    availableAt: "2026-11-26T18:00:00Z",
+    sentAt: null,
+    firstAttemptAt: "2026-11-26T17:00:00Z",
+    createdAt: "2026-11-26T16:00:00Z",
+    retry: "ready",
+  };
+  const row = {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    email: "ana@example.test",
+    status: "ACTIVE",
+    generation: 0,
+    createdAt: "2026-11-20T16:00:00Z",
+    variant: {
+      size: "M",
+      color: "Negro",
+      stock: 3,
+      product: { name: "Hoodie Saints" },
+    },
+    notifications: [failedNotice],
+  };
+  const queries: URLSearchParams[] = [];
+  const retries: unknown[] = [];
+  let retried = false;
+  await page.route("**/functions/v1/api/v1/admin/restock?**", (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    queries.push(params);
+    const items =
+      params.get("q") === "nadie"
+        ? []
+        : [
+            {
+              ...row,
+              notifications: [
+                retried
+                  ? { ...failedNotice, status: "PENDING", retry: null }
+                  : failedNotice,
+              ],
+            },
+          ];
+    return route.fulfill({
+      json: {
+        items,
+        total: items.length,
+        page: 1,
+        pages: items.length ? 1 : 0,
+        counts: {
+          FAILED: retried ? 0 : 1,
+          PENDING: retried ? 1 : 0,
+          SENT: 4,
+          CANCELLED: 0,
+          PROCESSING: 0,
+        },
+      },
+    });
+  });
+  await page.route("**/functions/v1/api/v1/admin/restock/retry", (route) => {
+    retries.push(route.request().postDataJSON());
+    retried = true;
+    return route.fulfill({ json: { ok: true, forced: false } });
+  });
+  await login(page);
+  await page.goto("/140210/restock");
+  const main = page.getByRole("main");
+  await expect(
+    main.getByText("Proveedor respondió HTTP 503 · 5 intentos")
+  ).toBeVisible();
+  await expect(main.getByText("Página 1 de 1 · 1 suscripción")).toBeVisible();
+  const chip = main.getByRole("button", { name: "Requieren revisión · 1" });
+  await chip.click();
+  await expect(
+    main.getByRole("button", { name: /Requieren revisión/ })
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(queries.at(-1)?.get("delivery")).toBe("FAILED");
+  await page.screenshot({
+    path: info.outputPath("restock.png"),
+    fullPage: true,
+  });
+  await main
+    .getByRole("button", { name: "Reintentar aviso para ana@example.test" })
+    .click();
+  await expect(main.getByRole("status")).toContainText(
+    "Aviso para ana@example.test en cola de nuevo."
+  );
+  expect(retries).toEqual([{ notificationId: failedNotice.id, force: false }]);
+  await expect(
+    main.getByRole("table").getByText("En cola", { exact: true })
+  ).toBeVisible();
+  await main.getByLabel("Buscar por correo o producto").fill("nadie");
+  await main.getByRole("button", { name: "Aplicar filtros" }).click();
+  await expect(
+    main.getByText("No hay avisos con estos filtros.")
+  ).toBeVisible();
+  await main.getByRole("button", { name: "Limpiar" }).click();
+  await expect(main.getByText("ana@example.test")).toBeVisible();
+  expect(queries.at(-1)?.toString()).toBe("page=1");
+});

@@ -1,18 +1,17 @@
 "use client";
-import Spinner from "@/components/ui/Spinner";
 import { useState } from "react";
 import Link from "next/link";
 import ProductImage from "@/components/catalog/ProductImage";
 import ProductImageModal from "./ProductImageModal";
 import type { CatalogProduct } from "../../../supabase/functions/_shared/contracts";
 import { useCart } from "./CartProvider";
-import { api } from "@/lib/api";
 import { formatCents } from "@/lib/format-price";
 import { toCents } from "@/modules/orders/domain/cart";
 import StoreAction from "@/components/ui/StoreAction";
 import VariantSelector from "@/modules/catalog/ui/components/VariantSelector";
 import StockAlertBadge from "@/modules/catalog/ui/components/StockAlertBadge";
 import { checkStock } from "@/modules/inventory/application/CheckStockUseCase";
+import RestockForm from "@/modules/restock/ui/RestockForm";
 export default function ProductDetail({
   product: p,
 }: {
@@ -23,7 +22,6 @@ export default function ProductDetail({
   const [image, setImage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
   const cart = useCart();
   const v = variants.find((v) => v.id === variantId);
   const inCart = cart.items.find((i) => i.variantId === v?.id)?.quantity ?? 0;
@@ -127,56 +125,11 @@ export default function ProductDetail({
               <StoreAction className="w-full sm:w-auto" disabled aria-disabled>
                 Agregar a la bolsa
               </StoreAction>
-              <form
-                className="space-y-3"
-                aria-label="Avisarme cuando haya stock"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = new FormData(e.currentTarget);
-                  setBusy(true);
-                  try {
-                    await api("/restock", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        email: form.get("email"),
-                        variantId: v.id,
-                        reactivate: form.get("reactivate") === "on",
-                      }),
-                    });
-                    setMessage("Solicitud registrada");
-                  } catch (e) {
-                    setMessage((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                <label className="block">
-                  Avísame cuando vuelva
-                  <input
-                    className="store-field block w-full border p-3"
-                    name="email"
-                    type="email"
-                    placeholder="Tu correo"
-                    required
-                  />
-                </label>
-                <label className="block text-sm">
-                  <input name="reactivate" type="checkbox" /> Reactivar mis
-                  avisos si antes me di de baja
-                </label>
-                <StoreAction type="submit" disabled={busy} aria-busy={busy}>
-                  {busy ? (
-                    <Spinner
-                      announce={false}
-
-                      label="Registrando…"
-                    />
-                  ) : (
-                    "Recibir aviso"
-                  )}
-                </StoreAction>
-              </form>
+              <RestockForm
+                key={v.id}
+                variantId={v.id}
+                variantLabel={`talla ${v.size} en ${v.color}`}
+              />
               <p className="text-muted text-sm">
                 Selecciona otra talla o color para ver su disponibilidad.
               </p>

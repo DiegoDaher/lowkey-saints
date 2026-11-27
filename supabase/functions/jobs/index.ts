@@ -3,7 +3,8 @@ import { cleanMedia } from "../_shared/storage/media.ts";
 import { productStorage } from "../_shared/storage/adapter.ts";
 import { db } from "../_shared/db.ts";
 import { ShopService } from "../_shared/service.ts";
-import { deliverNotifications } from "../_shared/notifications.ts";
+import { DeliverRestockNotificationsUseCase } from "../_shared/restock/application/DeliverRestockNotificationsUseCase.ts";
+import { createResendMailer } from "../_shared/restock/infra/ResendMailer.ts";
 import { hash } from "../_shared/domain.ts";
 const shop = new ShopService(db);
 Deno.serve(async (req) => {
@@ -32,7 +33,16 @@ Deno.serve(async (req) => {
       siteUrl = Deno.env.get("SITE_URL");
     const sent =
       apiKey && from && siteUrl?.startsWith("https://")
-        ? await deliverNotifications(db, { apiKey, from, siteUrl })
+        ? await new DeliverRestockNotificationsUseCase(
+            db,
+            createResendMailer({ apiKey, from }),
+            {
+              siteUrl,
+              apiUrl:
+                (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "") +
+                "/functions/v1/api",
+            }
+          ).execute()
         : null;
     let media = null;
     if (Deno.env.get("MEDIA_CLEANUP_ENABLED") === "true") {

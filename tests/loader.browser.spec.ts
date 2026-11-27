@@ -61,7 +61,7 @@ test("inline loader ends on failure and permits retry", async ({
       json: { error: "No se pudo cancelar" },
     });
   });
-  await page.goto("/baja?token=test");
+  await page.goto("/baja?token=00000000-0000-4000-8000-000000000000");
   const button = page.getByRole("button", { name: "Confirmar baja" });
   const before = await button.boundingBox();
   await button.click();
@@ -76,4 +76,34 @@ test("inline loader ends on failure and permits retry", async ({
   }
   await expect(button).toBeEnabled();
   await expect(page.locator(".saints-loader")).toHaveCount(0);
+});
+
+test("unsubscribe page without a token explains where to go", async ({
+  page,
+}) => {
+  await page.goto("/baja");
+  await expect(page.getByText("Cancelar avisos” del correo")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Confirmar baja" })
+  ).toHaveCount(0);
+});
+
+test("unsubscribe page confirms and links back to the store", async ({
+  page,
+}) => {
+  await page.route("**/functions/v1/api/v1/unsubscribe", (route) =>
+    route.fulfill({
+      headers: { "Access-Control-Allow-Origin": "*" },
+      json: { ok: true },
+    })
+  );
+  await page.goto("/baja?token=00000000-0000-4000-8000-000000000000");
+  await page.getByRole("button", { name: "Confirmar baja" }).click();
+  await expect(page.getByText("Tus avisos se cancelaron.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Confirmar baja" })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Volver a la tienda" })
+  ).toBeVisible();
 });
