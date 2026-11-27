@@ -1,3 +1,4 @@
+import { renderRestockEmail } from "./restock/infra/RestockEmail.ts";
 import type { PrismaClient } from "./generated/prisma/client.ts";
 export async function deliverNotifications(
   db: PrismaClient,
@@ -66,6 +67,15 @@ export async function deliverNotifications(
       });
       continue;
     }
+    const unsubscribeUrl =
+      config.siteUrl + "/baja?token=" + sub.unsubscribeToken;
+    const email = renderRestockEmail({
+      productName: sub.variant.product.name,
+      size: sub.variant.size,
+      color: sub.variant.color,
+      productUrl: config.siteUrl + "/productos/" + sub.variant.product.slug,
+      unsubscribeUrl,
+    });
     try {
       const res = await send("https://api.resend.com/emails", {
         method: "POST",
@@ -77,21 +87,8 @@ export async function deliverNotifications(
         body: JSON.stringify({
           from: config.from,
           to: [sub.email],
-          subject: "Volvió " + sub.variant.product.name,
-          text:
-            sub.variant.product.name +
-            " / " +
-            sub.variant.size +
-            " / " +
-            sub.variant.color +
-            " está disponible.\n" +
-            config.siteUrl +
-            "/productos/" +
-            sub.variant.product.slug +
-            "\nCancelar avisos: " +
-            config.siteUrl +
-            "/baja?token=" +
-            sub.unsubscribeToken,
+          ...email,
+          headers: { "List-Unsubscribe": "<" + unsubscribeUrl + ">" },
         }),
         signal: AbortSignal.timeout(15000),
       });

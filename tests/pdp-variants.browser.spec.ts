@@ -219,7 +219,11 @@ test.describe("restock form (LOG-04)", () => {
     let body: Record<string, unknown> | undefined;
     await page.route(RESTOCK, (route) => {
       body = route.request().postDataJSON();
-      return route.fulfill({ headers: CORS, json: { ok: true } });
+      return route.fulfill({
+        status: 201,
+        headers: CORS,
+        json: { result: "created" },
+      });
     });
     await soldOut(page);
     await page.getByLabel("Avísame cuando vuelva").fill(" Ana@Correo.COM ");
@@ -266,6 +270,85 @@ test.describe("restock form (LOG-04)", () => {
       page.getByRole("button", { name: "Recibir aviso" })
     ).toBeEnabled();
   });
+
+  test("no reactivation checkbox is shown up front", async ({ page }) => {
+    await soldOut(page);
+    await expect(page.getByLabel("Avísame cuando vuelva")).toBeVisible();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+  });
+
+  test("repeat request says the shopper is already listed (LOG-05)", async ({
+    page,
+  }) => {
+    await page.route(RESTOCK, (route) =>
+      route.fulfill({ headers: CORS, json: { result: "active" } })
+    );
+    await soldOut(page);
+    await page.getByLabel("Avísame cuando vuelva").fill("ana@correo.com");
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Ya estabas en la lista." })
+    ).toBeFocused();
+  });
+
+  test("unsubscribed email asks before reactivating (LOG-05)", async ({
+    page,
+  }) => {
+    const bodies: Record<string, unknown>[] = [];
+    await page.route(RESTOCK, (route) => {
+      const body = route.request().postDataJSON();
+      bodies.push(body);
+      return route.fulfill({
+        headers: CORS,
+        json: { result: body.reactivate ? "reactivated" : "unsubscribed" },
+      });
+    });
+    await soldOut(page);
+    await page.getByLabel("Avísame cuando vuelva").fill("ana@correo.com");
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    const question = page
+      .getByRole("status")
+      .filter({ hasText: "Antes cancelaste estos avisos." });
+    await expect(question).toBeFocused();
+    await expect(question).toContainText("ana@correo.com");
+    await page.getByRole("button", { name: "Reactivar avisos" }).click();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Avisos reactivados." })
+    ).toBeVisible();
+    expect(bodies.map((b) => b.reactivate)).toEqual([false, true]);
+  });
+
+  test("declining reactivation returns to the form", async ({ page }) => {
+    let calls = 0;
+    await page.route(RESTOCK, (route) => {
+      calls++;
+      return route.fulfill({ headers: CORS, json: { result: "unsubscribed" } });
+    });
+    await soldOut(page);
+    await page.getByLabel("Avísame cuando vuelva").fill("ana@correo.com");
+    await page.getByRole("button", { name: "Recibir aviso" }).click();
+    await page.getByRole("button", { name: "Usar otro correo" }).click();
+    await expect(page.getByLabel("Avísame cuando vuelva")).toBeVisible();
+    expect(calls).toBe(1);
+  });
+
+  for (const [status, text] of [
+    [404, "ya no está disponible"],
+    [409, "ya tiene piezas disponibles"],
+  ] as const)
+    test(`stale variant (${status}) offers a reload`, async ({ page }) => {
+      await page.route(RESTOCK, (route) =>
+        route.fulfill({ status, headers: CORS, json: { error: "x" } })
+      );
+      await soldOut(page);
+      await page.getByLabel("Avísame cuando vuelva").fill("ana@correo.com");
+      await page.getByRole("button", { name: "Recibir aviso" }).click();
+      const alert = page.getByRole("alert").filter({ hasText: text });
+      await expect(alert).toBeVisible();
+      await expect(
+        alert.getByRole("button", { name: "Recargar página" })
+      ).toBeVisible();
+    });
 
   test("filled honeypot never reaches the API", async ({ page }) => {
     let calls = 0;

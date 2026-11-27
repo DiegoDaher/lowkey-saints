@@ -5,15 +5,24 @@ import StoreAction from "@/components/ui/StoreAction";
 import { api } from "@/lib/api";
 import {
   loadRememberedEmail,
+  parseRestockResult,
   rememberEmail,
+  restockConfirmation,
   restockErrorMessage,
+  restockNeedsReload,
   validateRestockEmail,
+  type RestockResult,
 } from "../domain/restock-form";
 
-type Status = "idle" | "submitting" | "success";
+type Done = Exclude<RestockResult, "unsubscribed">;
+type Status =
+  | { kind: "idle" }
+  | { kind: "submitting" }
+  | { kind: "confirm"; email: string; busy: boolean }
+  | { kind: "success"; email: string; result: Done };
 
 /**
- * Back-in-stock request for a sold-out variant (LOG-04).
+ * Back-in-stock request for a sold-out variant (LOG-04 / LOG-05).
  * Mount with `key={variantId}` so each variant starts from a clean state.
  */
 export default function RestockForm({
@@ -25,51 +34,139 @@ export default function RestockForm({
 }) {
   const ids = useId();
   const emailRef = useRef<HTMLInputElement>(null);
-  const confirmRef = useRef<HTMLDivElement>(null);
-  const [status, setStatus] = useState<Status>("idle");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [fieldError, setFieldError] = useState("");
   const [serverError, setServerError] = useState("");
-  const [savedEmail, setSavedEmail] = useState("");
+  const [needsReload, setNeedsReload] = useState(false);
 
   // Prefill after mount so server and client render the same markup.
   useEffect(() => {
     const input = emailRef.current;
     if (input && !input.value) input.value = loadRememberedEmail();
-  }, [status]);
+  }, [status.kind]);
 
+  // Move focus to the confirmation or the reactivation question.
   useEffect(() => {
-    if (status === "success") confirmRef.current?.focus();
-  }, [status]);
+    if (status.kind === "success" || status.kind === "confirm")
+      panelRef.current?.focus();
+  }, [status.kind]);
 
-  if (status === "success")
+  async function request(email: string, reactivate: boolean) {
+    setServerError("");
+    setNeedsReload(false);
+    try {
+      const result = parseRestockResult(
+        await api("/restock", {
+          method: "POST",
+          body: JSON.stringify({ email, variantId, reactivate }),
+        })
+      );
+      rememberEmail(email);
+      setStatus(
+        result === "unsubscribed"
+          ? { kind: "confirm", email, busy: false }
+          : { kind: "success", email, result }
+      );
+    } catch (error) {
+      setServerError(restockErrorMessage(error));
+      setNeedsReload(restockNeedsReload(error));
+      setStatus(
+        reactivate ? { kind: "confirm", email, busy: false } : { kind: "idle" }
+      );
+    }
+  }
+
+  const reset = () => {
+    setServerError("");
+    setNeedsReload(false);
+    setStatus({ kind: "idle" });
+  };
+
+  const errorBox = serverError && (
+    <div className="store-status text-sale space-y-1" role="alert">
+      <p>{serverError}</p>
+      {needsReload && (
+        <button
+          type="button"
+          className="store-link inline-flex min-h-11 items-center text-sm"
+          onClick={() => window.location.reload()}
+        >
+          Recargar página
+        </button>
+      )}
+    </div>
+  );
+
+  if (status.kind === "success") {
+    const copy = restockConfirmation(status.result, status.email, variantLabel);
     return (
       <div
-        ref={confirmRef}
+        ref={panelRef}
         tabIndex={-1}
         role="status"
         className="store-receipt border-gold space-y-2 border-l-2 pl-4 outline-none"
       >
-        <p className="font-semibold">Listo, te avisaremos.</p>
-        <p className="text-sm">
-          Enviaremos un correo a{" "}
-          <strong className="break-all">{savedEmail}</strong> cuando
-          {variantLabel ? ` ${variantLabel}` : " esta variante"} vuelva a estar
-          disponible.
-        </p>
+        <p className="font-semibold">{copy.title}</p>
+        <p className="text-sm break-words">{copy.body}</p>
         <button
           type="button"
           className="store-link inline-flex min-h-11 items-center text-sm"
-          onClick={() => {
-            setServerError("");
-            setStatus("idle");
-          }}
+          onClick={reset}
         >
           Usar otro correo
         </button>
       </div>
     );
+  }
 
-  const busy = status === "submitting";
+  if (status.kind === "confirm")
+    return (
+      <div className="space-y-3">
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          role="status"
+          className="border-gold space-y-2 border-l-2 pl-4 outline-none"
+        >
+          <p className="font-semibold">Antes cancelaste estos avisos.</p>
+          <p className="text-sm">
+            <strong className="break-all">{status.email}</strong> se dio de baja
+            de los avisos de {variantLabel ?? "esta variante"}. ¿Quieres
+            reactivarlos?
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <StoreAction
+            type="button"
+            disabled={status.busy}
+            aria-busy={status.busy}
+            onClick={() => {
+              if (status.busy) return;
+              setStatus({ ...status, busy: true });
+              void request(status.email, true);
+            }}
+          >
+            {status.busy ? (
+              <Spinner announce={false} label="Reactivando…" />
+            ) : (
+              "Reactivar avisos"
+            )}
+          </StoreAction>
+          <button
+            type="button"
+            className="store-link inline-flex min-h-11 items-center text-sm"
+            disabled={status.busy}
+            onClick={reset}
+          >
+            Usar otro correo
+          </button>
+        </div>
+        {errorBox}
+      </div>
+    );
+
+  const busy = status.kind === "submitting";
   const hintId = ids + "-hint";
   const errorId = ids + "-error";
 
@@ -89,30 +186,17 @@ export default function RestockForm({
           return;
         }
         setFieldError("");
-        setServerError("");
         // Honeypot: real people never see this field, bots usually fill it.
         if (form.get("website")) {
-          setSavedEmail(result.email);
-          setStatus("success");
+          setStatus({
+            kind: "success",
+            email: result.email,
+            result: "created",
+          });
           return;
         }
-        setStatus("submitting");
-        try {
-          await api("/restock", {
-            method: "POST",
-            body: JSON.stringify({
-              email: result.email,
-              variantId,
-              reactivate: form.get("reactivate") === "on",
-            }),
-          });
-          rememberEmail(result.email);
-          setSavedEmail(result.email);
-          setStatus("success");
-        } catch (error) {
-          setServerError(restockErrorMessage(error));
-          setStatus("idle");
-        }
+        setStatus({ kind: "submitting" });
+        await request(result.email, false);
       }}
     >
       <div>
@@ -149,7 +233,8 @@ export default function RestockForm({
           </p>
         )}
         <p id={hintId} className="text-muted mt-1 text-sm">
-          Solo te escribiremos para este aviso.
+          Solo te escribiremos para este aviso. Puedes cancelarlo desde el
+          correo.
         </p>
       </div>
       <div
@@ -161,10 +246,6 @@ export default function RestockForm({
           <input name="website" type="text" tabIndex={-1} autoComplete="off" />
         </label>
       </div>
-      <label className="block text-sm">
-        <input name="reactivate" type="checkbox" /> Reactivar mis avisos si
-        antes me di de baja
-      </label>
       <StoreAction type="submit" disabled={busy} aria-busy={busy}>
         {busy ? (
           <Spinner announce={false} label="Registrando…" />
@@ -172,11 +253,7 @@ export default function RestockForm({
           "Recibir aviso"
         )}
       </StoreAction>
-      {serverError && (
-        <p className="store-status text-sale" role="alert">
-          {serverError}
-        </p>
-      )}
+      {errorBox}
     </form>
   );
 }

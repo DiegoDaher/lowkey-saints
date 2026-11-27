@@ -394,13 +394,58 @@ Deno.test({
           .stock === 3,
         "expiry idempotent"
       );
-      await shop.subscribe("test@example.com", empty.id, false);
-      await shop.subscribe("test@example.com", empty.id, false);
+      const subscribeStatus = async (variantId: string) => {
+        try {
+          await shop.subscribe("test@example.com", variantId, false);
+          return 0;
+        } catch (error) {
+          return error instanceof AppError ? error.status : -1;
+        }
+      };
+      assert(
+        (await shop.subscribe("test@example.com", empty.id, false)) ===
+          "created",
+        "first subscription created"
+      );
+      assert(
+        (await shop.subscribe("test@example.com", empty.id, false)) ===
+          "active",
+        "repeated subscription is idempotent"
+      );
       assert(
         (await db.restockSubscription.count({
           where: { variantId: empty.id },
         })) === 1,
         "subscription deduplicated"
+      );
+      assert(
+        (await subscribeStatus((await variant(2)).id)) === 409,
+        "in-stock variant rejected"
+      );
+      assert(
+        (await subscribeStatus(crypto.randomUUID())) === 404,
+        "unknown variant is not found"
+      );
+      const archivedRestock = await variant(0);
+      await db.productVariant.update({
+        where: { id: archivedRestock.id },
+        data: { isArchived: true },
+      });
+      assert(
+        (await subscribeStatus(archivedRestock.id)) === 404,
+        "archived variant is not found"
+      );
+      const racer = await variant(0);
+      const raced = await Promise.all([
+        shop.subscribe("race@example.com", racer.id, false),
+        shop.subscribe("race@example.com", racer.id, false),
+      ]);
+      assert(
+        raced.sort().join() === "active,created" &&
+          (await db.restockSubscription.count({
+            where: { variantId: racer.id },
+          })) === 1,
+        "concurrent duplicates resolve to one subscription"
       );
       await shop.updateStock([{ id: empty.id, version: 0, stock: 2 }]);
       assert((await db.notification.count()) === 1, "outbox enqueued");
@@ -431,8 +476,17 @@ Deno.test({
         data: { availableAt: new Date(0) },
       });
       let calls = 0;
-      await deliverNotifications(db, mail, (async () => {
+      let sentPayload: {
+        html?: string;
+        text?: string;
+        headers?: Record<string, string>;
+      } = {};
+      await deliverNotifications(db, mail, (async (
+        _url: string,
+        init?: RequestInit
+      ) => {
         calls++;
+        sentPayload = JSON.parse(String(init?.body));
         return Response.json({ id: "test" });
       }) as typeof fetch);
       await deliverNotifications(db, mail, (async () => {
@@ -440,7 +494,37 @@ Deno.test({
         return Response.json({ id: "test" });
       }) as typeof fetch);
       assert(calls === 1, "sent messages not resent");
-      const sub = await db.restockSubscription.findFirstOrThrow();
+      const notified = await db.restockSubscription.findFirstOrThrow({
+        where: { email: "test@example.com", variantId: empty.id },
+      });
+      assert(notified.status === "NOTIFIED", "delivery marks subscription");
+      assert(
+        !!sentPayload.html?.includes("Ver producto") &&
+          !!sentPayload.text?.includes("/baja?token=") &&
+          sentPayload.headers?.["List-Unsubscribe"] ===
+            "<https://example.com/baja?token=" +
+              notified.unsubscribeToken +
+              ">",
+        "email has HTML, text and List-Unsubscribe"
+      );
+      await db.productVariant.update({
+        where: { id: empty.id },
+        data: { stock: 0 },
+      });
+      assert(
+        (await shop.subscribe("test@example.com", empty.id, false)) ===
+          "reactivated",
+        "notified subscription reactivates"
+      );
+      const sub = await db.restockSubscription.findUniqueOrThrow({
+        where: { id: notified.id },
+      });
+      assert(
+        sub.status === "ACTIVE" &&
+          sub.generation === notified.generation + 1 &&
+          sub.unsubscribeToken !== notified.unsubscribeToken,
+        "reactivation rotates generation and token"
+      );
       await shop.unsubscribe(sub.unsubscribeToken);
       assert(
         (
@@ -449,6 +533,24 @@ Deno.test({
           })
         ).status === "UNSUBSCRIBED",
         "unsubscribe persisted"
+      );
+      assert(
+        (await shop.subscribe("test@example.com", empty.id, false)) ===
+          "unsubscribed",
+        "unsubscribed email needs consent"
+      );
+      assert(
+        (
+          await db.restockSubscription.findUniqueOrThrow({
+            where: { id: sub.id },
+          })
+        ).status === "UNSUBSCRIBED",
+        "consent prompt changes nothing"
+      );
+      assert(
+        (await shop.subscribe("test@example.com", empty.id, true)) ===
+          "reactivated",
+        "explicit consent reactivates"
       );
       const security = await db.$queryRaw<
         {
@@ -951,6 +1053,35 @@ Deno.test({
           "public catalog excludes financial fields"
         );
       }
+      const restockRequest = (variantId: string) =>
+        handler(
+          new Request("http://localhost/v1/restock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: "http@example.com", variantId }),
+          })
+        );
+      const httpEmpty = await variant(0);
+      const createdResponse = await restockRequest(httpEmpty.id);
+      assert(
+        createdResponse.status === 201 &&
+          (await createdResponse.json()).result === "created",
+        "restock HTTP creates with 201"
+      );
+      const repeatedResponse = await restockRequest(httpEmpty.id);
+      assert(
+        repeatedResponse.status === 200 &&
+          (await repeatedResponse.json()).result === "active",
+        "restock HTTP repeat answers 200 active"
+      );
+      assert(
+        (await restockRequest(crypto.randomUUID())).status === 404,
+        "restock HTTP unknown variant 404"
+      );
+      assert(
+        (await restockRequest((await variant(3)).id)).status === 409,
+        "restock HTTP in-stock 409"
+      );
       const historical = await shop.createOrder(order(inventory.id));
       const originalSku = inventory.sku;
       assert(

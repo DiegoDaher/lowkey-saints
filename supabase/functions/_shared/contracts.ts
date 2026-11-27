@@ -80,6 +80,14 @@ export const subscriptionInput = z
     reactivate: z.boolean().default(false),
   })
   .strict();
+/** Outcome of POST /v1/restock, shared with the storefront form (LOG-05). */
+export const restockResults = [
+  "created",
+  "active",
+  "reactivated",
+  "unsubscribed",
+] as const;
+export type RestockResult = (typeof restockResults)[number];
 export const stockInput = z
   .object({
     changes: z

@@ -1,5 +1,6 @@
 import { attachMedia, detachMedia } from "./storage/media.ts";
 import { CreateOrderUseCase } from "./orders/application/CreateOrderUseCase.ts";
+import { SubscribeToRestockUseCase } from "./restock/application/SubscribeToRestockUseCase.ts";
 import { Prisma, PrismaClient } from "./generated/prisma/client.ts";
 import { AppError, requireTransition } from "./domain.ts";
 import type { CreateOrderInput, ProductInput } from "./contracts.ts";
@@ -155,33 +156,9 @@ export class ShopService {
     });
   }
   async subscribe(email: string, variantId: string, reactivate: boolean) {
-    return this.atomic(async (tx) => {
-      const v = await tx.productVariant.findFirst({
-        where: {
-          id: variantId,
-          isArchived: false,
-          product: { isArchived: false },
-        },
-      });
-      if (!v || v.stock > 0)
-        throw new AppError(409, "La variante no está agotada");
-      const prior = await tx.restockSubscription.findUnique({
-        where: { email_variantId: { email, variantId } },
-      });
-      if (!prior) {
-        await tx.restockSubscription.create({ data: { email, variantId } });
-        return;
-      }
-      if (reactivate && prior.status !== "ACTIVE")
-        await tx.restockSubscription.update({
-          where: { id: prior.id },
-          data: {
-            status: "ACTIVE",
-            generation: { increment: 1 },
-            unsubscribeToken: crypto.randomUUID(),
-          },
-        });
-    });
+    return new SubscribeToRestockUseCase(this.db, (work) =>
+      this.atomic(work)
+    ).execute(email, variantId, reactivate);
   }
   async unsubscribe(token: string) {
     await this.atomic(async (tx) => {

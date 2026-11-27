@@ -282,8 +282,8 @@ export function createApiHandler(
       if (route === "/v1/restock" && method === "POST") {
         const v = subscriptionInput.parse(await body(req));
         await shop.rateLimit("email:" + (await hash(v.email)), 5);
-        await shop.subscribe(v.email, v.variantId, v.reactivate);
-        return json({ ok: true });
+        const result = await shop.subscribe(v.email, v.variantId, v.reactivate);
+        return json({ result }, result === "created" ? 201 : 200);
       }
       if (route === "/v1/unsubscribe" && method === "POST") {
         const v = z.object({ token: id }).parse(await body(req));
