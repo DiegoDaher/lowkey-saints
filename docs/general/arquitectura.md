@@ -25,16 +25,14 @@ El esquema está en `prisma/schema.prisma` y las migraciones en `prisma/migratio
 
 PostgreSQL usa TLS obligatorio con la CA pública de docs/prod-ca-2021.crt, compartida por api, jobs y clientes administrativos. Se verificó certificado y hostname desde Node y Deno; api y jobs reportan TLS 1.3 en pg_stat_ssl. Supabase tiene Enforce SSL activo y rechaza conexiones sin cifrado. Las pruebas negativas rechazan CA ajena y hostname incorrecto. Prisma CLI también usa la CA con aceptación estricta.
 
-El despliegue trata frontend, API, migraciones y worker por separado. Las entregas que cambian el esquema, como ADM-04, requieren coordinar migraciones y escritores; las actualizaciones de API sin cambios de datos no requieren migrar ni activar Cron. Ver [informe de seguridad](seguridad-apis.md).
+El despliegue trata frontend, API, migraciones y worker por separado. Las entregas que cambian el esquema, como ADM-04, requieren coordinar migraciones y escritores; las actualizaciones de API sin cambios de datos no requieren migrar ni activar Cron. Ver [informe de seguridad](../seguridad-apis.md).
 
-## Multimedia ADM-04
+## Detalle por módulo
 
-El adaptador Storage vive en `supabase/functions/_shared/storage/` y lo comparten API y jobs. `ProductMediaAsset` coordina subidas temporales, referencias y limpieza; `ProductImage.path` conserva la ruta y la API deriva su URL pública. El worker elimina únicamente archivos sin referencias y está desactivado por defecto. Ver [operación de ADM-04](adm-04-multimedia.md).
+Cada módulo documenta sus rutas, contratos, datos y operación en [docs/modulos](../modulos/README.md):
 
-## Finanzas ADM-05
+- [Ficha de producto](../modulos/ficha-producto/README.md): la bolsa vive solo en el navegador; la disponibilidad y el precio definitivos los decide la API al crear el pedido.
+- [Administración](../modulos/admin/README.md): prefijo público `/140210`, multimedia en Storage y finanzas.
+- [Pedidos y restock](../modulos/pedidos/README.md): reservas, worker `jobs` y avisos por correo.
 
-La ruta visible `/140210/finanzas` usa el rewrite administrativo vigente; `/admin` directo devuelve 404. El dashboard y sus Server Actions requieren ADMIN. `CalculateFinancialMarginsUseCase` en las Edge Functions concentra lectura consistente, cálculos Decimal y guardado atómico de precio/costo con versión optimista. `FinancialSettings` conserva el umbral global protegido por RLS. Ver [contratos y operación](adm-05-finanzas.md).
-
-## Bolsa y side-cart PDP-04
-
-La bolsa vive solo en el navegador. `src/modules/orders/domain/cart.ts` concentra las reglas puras (centavos enteros, límites por línea y retención informativa de 60 minutos); `CartProvider` la persiste en `localStorage` (`cart-storage`) mediante `useSyncExternalStore`. Los componentes compartidos de la tienda que no pertenecen a un módulo viven en `src/shared/ui` (`SideCartDrawer`). La disponibilidad y el precio definitivos los decide la API al crear el pedido. Ver [PDP-04](../src/modules/catalog/pdp.md).
+Los componentes compartidos de la tienda que no pertenecen a un módulo viven en `src/shared/ui`.

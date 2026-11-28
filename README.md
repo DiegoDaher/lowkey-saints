@@ -83,6 +83,6 @@ La mejora limita JSON a **200 000 bytes** e imágenes a **5 242 880 bytes**, can
 4. Repetir integración en PostgreSQL desechable cuando cambie el dominio o el esquema.
 5. Revisar las cuatro conclusiones propuestas y ensayar el guion de diez minutos.
 
-[Arquitectura](docs/Arquitectura.md) · [Informe](docs/seguridad-apis.md) · [Evidencias](docs/evidencias/seguridad-apis/README.md) · [Word](docs/entregables/Lowkey_Saints_Seguridad_APIs_Despliegue.docx)
+[Arquitectura](docs/general/arquitectura.md) · [Documentación](docs/README.md) · [Informe](docs/seguridad-apis.md) · [Evidencias](docs/evidencias/seguridad-apis/README.md) · [Word](docs/entregables/Lowkey_Saints_Seguridad_APIs_Despliegue.docx)
 
 Repositorio: https://github.com/DiegoDaher/lowkey-saints
