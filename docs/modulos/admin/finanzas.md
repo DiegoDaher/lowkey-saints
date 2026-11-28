@@ -1,4 +1,8 @@
-# ADM-05: Finanzas y análisis de márgenes
+# Finanzas y márgenes
+
+> Ticket: **ADM-05** · Módulo: [Administración](./README.md) · Ruta: `/140210/finanzas` · Acceso: solo ADMIN (permiso `finances`)
+
+Captura conjunta de precio de venta y costo interno por producto, KPIs de margen sobre los filtros y umbral global de margen bajo.
 
 ## Arquitectura y acceso
 
@@ -26,12 +30,12 @@ Filtros por nombre, categoría y estado; activos por defecto. Páginas de 50, or
 
 Prefijo Edge: `/functions/v1/api/v1/admin`. Todos los endpoints requieren ADMIN.
 
-| Método y ruta                  | Entrada y resultado                                                                                                             |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| GET `/finances/dashboard`      | `q`, `category` (UUID), `state=active                                                                                           | archived | all`, `page`. Devuelve `{items,total,settings,kpis}`. Cada fila contiene id, nombre, versión, estado archivado, precios, `amount`, `percent`, `status`. |
-| PATCH `/finances/products/:id` | `{version,salePrice,costPrice}`. Actualiza ambos importes atómicamente e incrementa Product.version; devuelve fila recalculada. |
-| GET `/finances/settings`       | Devuelve `{lowMarginThreshold,version}`.                                                                                        |
-| PUT `/finances/settings`       | `{version,lowMarginThreshold}`. Actualiza el umbral e incrementa su versión.                                                    |
+| Método y ruta                  | Entrada y resultado                                                                                                                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/finances/dashboard`      | `q`, `category` (UUID), `state=active\|archived\|all`, `page`. Devuelve `{items,total,settings,kpis}`. Cada fila contiene id, nombre, versión, estado archivado, precios, `amount`, `percent`, `status`. |
+| PATCH `/finances/products/:id` | `{version,salePrice,costPrice}`. Actualiza ambos importes atómicamente e incrementa Product.version; devuelve fila recalculada.                                                                          |
+| GET `/finances/settings`       | Devuelve `{lowMarginThreshold,version}`.                                                                                                                                                                 |
+| PUT `/finances/settings`       | `{version,lowMarginThreshold}`. Actualiza el umbral e incrementa su versión.                                                                                                                             |
 
 Importes y porcentajes nuevos se serializan como cadenas decimales; campos no calculables son null. `status`: `missing`, `negative`, `undefined`, `low`, `healthy`. Los costos/precios no admiten negativos ni más de dos decimales. Conflictos devuelven 409, producto ausente 404, entradas inválidas 400.
 
@@ -44,7 +48,7 @@ La captura conjunta ocurre en Finanzas; el catálogo mantiene su editor de preci
 1. Aplicar `202611200001_financial_settings` con `npm run db:deploy` y generar cliente con `npm run db:generate`.
 2. Publicar Edge Functions compatibles y después Next.js. La migración no altera precios/costos existentes; no requiere nuevas credenciales en Next.js.
 3. En staging verificar ADMIN, OPERATOR, usuario anónimo y perfil desactivado; guardar importes, provocar conflicto y actualizar umbral.
-4. Vigilar 401/403/409/5xx sin registrar costos, tokens ni datos sensibles. Ante fallo del frontend se puede volver a la versión anterior conservando la migración aditiva y API compatible; no eliminar la tabla mientras la API nueva est? activa.
+4. Vigilar 401/403/409/5xx sin registrar costos, tokens ni datos sensibles. Ante fallo del frontend se puede volver a la versión anterior conservando la migración aditiva y API compatible; no eliminar la tabla mientras la API nueva esté activa.
 
 ## Verificación
 

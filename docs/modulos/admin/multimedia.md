@@ -1,4 +1,8 @@
-# ADM-04: multimedia de producto
+# Multimedia de producto
+
+> Ticket: **ADM-04** · Módulo: [Administración](./README.md) · Acceso: solo ADMIN (permiso `images`)
+
+Carga múltiple de fotografías para productos: compresión en el navegador, Storage de Supabase y limpieza asíncrona de archivos sin referencias.
 
 ## Arquitectura y contratos
 
